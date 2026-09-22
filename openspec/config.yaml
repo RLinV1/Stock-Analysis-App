@@ -1,0 +1,25 @@
+schema: spec-driven
+context: |
+  Selected direction: reproduce a bounded experiment from Deep Learning for
+  Portfolio Optimization (Zhang, Zohren, Roberts), then build a mobile experiment
+  lab to replace Flow on the resume. A Python research prototype exists; no API or client yet.
+  Current stack: React Native/Expo client, Java/Spring Boot API, PostgreSQL, Liquibase,
+  LocalStack, Docker Compose, and later K3s. Python/PyTorch owns research and background jobs.
+  This supersedes Kotlin/Quarkus after the 2026-09-21 document correction request.
+  The user confirmed a physical Android phone; web is an additional Expo target.
+  Initial topology is the physical phone over Tailscale connecting to the backend
+  and training worker on the user's PC; no emulator or public cloud required.
+  Tailscale is disconnected at the user's request. Phone setup and endpoint access
+  are deferred, not prerequisites for local implementation. No Serve endpoint exists.
+  One small CPU-capable training run at a time initially; GPU acceleration optional.
+  Current PC: Ryzen 9 6900HS, approximately 16 GB RAM, RTX 3060 Laptop GPU 6 GB VRAM.
+  DESIGN.md is current; docs/archive/ABACUS-DESIGN.superseded.md is historical only.
+  Preserve causal evaluation, data provenance, and explicit reproduction deviations.
+  Document every logical change immediately in its implementation.md; keep HANDOFF.md
+  and accepted design decisions consistent with actual work and verification.
+rules:
+  proposal:
+    - Distinguish requirements, assumptions, and proposed additions.
+  tasks:
+    - Include immediate documentation updates and appropriate verification.
+

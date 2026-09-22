@@ -1,0 +1,80 @@
+# ---------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# ---------------------------------------------------------------
+# Vendor data and run outputs — licensing control, not just hygiene.
+# No free provider examined grants redistribution rights. Snapshots
+# stay local. See docs/FINDING-DATA-SOURCING.md.
+# ---------------------------------------------------------------
+data/
+runs/
+snapshots/
+*.csv
+*.parquet
+*.feather
+!data/sample/**
+!**/fixtures/**
+
+# ---------------------------------------------------------------
+# Model artifacts and checkpoints
+# ---------------------------------------------------------------
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.safetensors
+*.ckpt
+
+# ---------------------------------------------------------------
+# Secrets — never commit. .gitignore is not a scanner; pair with a
+# pre-commit secret scan before this repository becomes public.
+# ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.keystore
+credentials.json
+secrets.yaml
+
+# ---------------------------------------------------------------
+# JVM (Phase B)
+# ---------------------------------------------------------------
+target/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+*.class
+
+# ---------------------------------------------------------------
+# Node / Expo (Phase C)
+# ---------------------------------------------------------------
+node_modules/
+.expo/
+.expo-shared/
+*.tsbuildinfo
+
+# ---------------------------------------------------------------
+# Editors and OS
+# ---------------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
