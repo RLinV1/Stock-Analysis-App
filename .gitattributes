@@ -1,0 +1,19 @@
+# Normalize line endings to LF in the repository AND the working tree.
+#
+# This project hashes numerical source files as part of run provenance
+# (docs/REPRODUCTION.md). Platform-dependent line-ending conversion would
+# make the same logical source produce different fingerprints on Windows
+# versus Linux, silently breaking cross-platform replay comparison.
+# Keep bytes identical everywhere.
+* text=auto eol=lf
+
+# Binary - never convert
+*.pt      binary
+*.pth     binary
+*.onnx    binary
+*.pkl     binary
+*.safetensors binary
+*.parquet binary
+*.png     binary
+*.jpg     binary
+*.pdf     binary
