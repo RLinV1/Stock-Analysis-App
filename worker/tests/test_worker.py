@@ -1,11 +1,13 @@
 import hashlib
 import io
 import json
+import time
 import uuid
 
 import pytest
 
-from portfolio_worker import Claimed, JobStore, upload_artifacts
+import portfolio_worker
+from portfolio_worker import Claimed, JobStore, run_one, upload_artifacts
 
 
 class FakeS3:
@@ -103,3 +105,76 @@ def test_invalid_stored_request_fails_terminally_instead_of_blocking_queue(monke
     assert "state='FAILED'" in sql and "error_code='invalid_request'" in sql
     assert params == (run_id,)
     assert not any("INSERT INTO run_attempt" in statement for statement, _ in cursor.statements)
+
+
+class RecordingStore:
+    """Fake JobStore recording which ownership transition run_one chose."""
+
+    def __init__(self, *, heartbeat=True, publish=True):
+        self.heartbeat_result = heartbeat
+        self.publish_result = publish
+        self.calls = []
+
+    def heartbeat(self, job):
+        self.calls.append("heartbeat")
+        return self.heartbeat_result
+
+    def publish(self, job, key, digest):
+        self.calls.append("publish")
+        return self.publish_result
+
+    def cancel_owned(self, job):
+        self.calls.append("cancel_owned")
+        return True
+
+    def fail_owned(self, job):
+        self.calls.append("fail_owned")
+
+
+def fake_execute(request, root):
+    run_dir = root / "run"
+    run_dir.mkdir()
+    (run_dir / "report.json").write_text("{}", encoding="utf-8")
+    return run_dir
+
+
+def test_run_one_publishes_completed_attempt(monkeypatch):
+    monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", fake_execute)
+    store, s3 = RecordingStore(), FakeS3()
+    run_one(store, s3, "lab-artifacts", job())
+    assert store.calls == ["publish"]
+    assert any(key.endswith("artifact-index.json") for _, key in s3.objects)
+
+
+def test_run_one_does_not_upload_after_losing_lease(monkeypatch):
+    def slow_execute(request, root):
+        # Let the heartbeat thread observe a lost lease before execution returns.
+        deadline = time.monotonic() + 5
+        while "heartbeat" not in store.calls and time.monotonic() < deadline:
+            time.sleep(0.01)
+        return fake_execute(request, root)
+
+    monkeypatch.setattr(portfolio_worker, "HEARTBEAT_SECONDS", 0.01)
+    monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", slow_execute)
+    store, s3 = RecordingStore(heartbeat=False), FakeS3()
+    run_one(store, s3, "lab-artifacts", job())
+    assert store.calls == ["heartbeat", "cancel_owned"]
+    assert s3.objects == {}
+
+
+def test_run_one_cancels_when_conditional_publish_loses(monkeypatch):
+    monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", fake_execute)
+    store = RecordingStore(publish=False)
+    run_one(store, FakeS3(), "lab-artifacts", job())
+    assert store.calls == ["publish", "cancel_owned"]
+
+
+def test_run_one_records_failure_and_reraises(monkeypatch):
+    def broken(request, root):
+        raise RuntimeError("training failed")
+
+    monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", broken)
+    store = RecordingStore()
+    with pytest.raises(RuntimeError, match="training failed"):
+        run_one(store, FakeS3(), "lab-artifacts", job())
+    assert store.calls == ["fail_owned"]
