@@ -24,9 +24,11 @@ public final class LocalOperatorFilter extends OncePerRequestFilter {
         this.expected = secret.getBytes(StandardCharsets.UTF_8);
     }
 
+    // Fail closed: only the exact raw health URI is public. A prefix allowlist on the
+    // raw URI let path-parameter variants such as /api;x/v1/runs reach controllers.
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !request.getRequestURI().startsWith("/api/v1/");
+        return "/actuator/health".equals(request.getRequestURI());
     }
 
     @Override

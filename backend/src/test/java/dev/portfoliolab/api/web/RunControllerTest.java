@@ -1,6 +1,7 @@
 package dev.portfoliolab.api.web;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -33,6 +34,24 @@ class RunControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("unauthorized"));
         assertEquals(0, repository.submissions);
+    }
+
+    @Test
+    void pathParameterVariantsStillRequireBearer() throws Exception {
+        UUID id = UUID.randomUUID();
+        for (String path : new String[] {"/api;x=1/v1/runs/" + id, "/api/v1;x=1/runs/" + id,
+                "/api/v1/runs;x=1/" + id}) {
+            mvc().perform(get(path)).andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.code").value("unauthorized"));
+        }
+    }
+
+    @Test
+    void onlyExactHealthPathSkipsBearer() throws Exception {
+        mvc().perform(get("/actuator/health")).andExpect(status().isNotFound());
+        for (String path : new String[] {"/actuator/health;x=1", "/actuator/env", "/unknown"}) {
+            mvc().perform(get(path)).andExpect(status().isUnauthorized());
+        }
     }
 
     @Test

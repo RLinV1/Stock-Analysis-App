@@ -1,11 +1,15 @@
 ## ADDED Requirements
 
 ### Requirement: Accept bounded authenticated synthetic jobs
-The API SHALL accept only the versioned synthetic request contract with a configured operator credential, bounded body and Idempotency-Key. It SHALL persist a new job and canonical request hash atomically. Same key and request SHALL return the existing job; same key and different request SHALL return a conflict.
+The API SHALL accept only the versioned synthetic request contract with a configured operator credential, bounded body and Idempotency-Key. Every route except the exact minimal health path SHALL require that credential, including path-parameter or otherwise non-canonical spellings of API routes. It SHALL persist a new job and canonical request hash atomically. Same key and request SHALL return the existing job; same key and different request SHALL return a conflict.
 
 #### Scenario: Retry a submission
 - **WHEN** an authenticated operator repeats a valid POST with the same idempotency key and canonical body
 - **THEN** the API returns the original run ID and does not enqueue another run
+
+#### Scenario: Reject an unauthenticated path variant
+- **WHEN** a client without the credential requests an API route spelled with a path parameter, such as `/api;x=1/v1/runs/{id}`
+- **THEN** the API returns 401 before any repository access
 
 ### Requirement: Execute and publish only owned attempts
 The worker SHALL claim queued or expired work using a lease and unique fencing token, execute at most one job concurrently, upload attempt-scoped artifacts with hashes, and publish completion only while its token owns the uncancelled run.
