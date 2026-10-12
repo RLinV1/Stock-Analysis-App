@@ -31,7 +31,7 @@ Updated 2026-10-12.
 
 ## Environment and boundaries
 - Python 3.12.14, CPU PyTorch 2.8.0+cpu, NumPy 2.2.6, psutil 7.0.0, filelock 3.32.6; dependency checks passed. Use unique workspace-local pytest temporary directories and disable its cache to avoid prior permission failures.
-- Earlier host checks: Java 21 installed but old patch, PATH Java 24; Docker installed but engine unavailable. Node 22.23.2 was installed via nvm on 2026-10-09, but new shells still select 22.12.0; prefix the newer binary directory for Expo commands. npm audit with dev packages omitted reported 12 moderate/23 high advisories; triage before network exposure/publication. LocalStack token/persistence and complete dependency locks remain unverified.
+- Earlier host checks: Java 21 installed but old patch, PATH Java 24; Docker installed but engine unavailable. Node 22.23.2 was installed via nvm on 2026-10-09, but new shells still select 22.12.0; prefix the newer binary directory for Expo commands. npm audit with dev packages omitted reports 12 moderate/23 high advisories; [triage-mobile-npm-audit](changes/archive/2026-10-12-triage-mobile-npm-audit/design.md) traced them to four tooling root packages with no safe fix and accepted them for local use (recheck on Expo upgrades and before exposure/publication). LocalStack token/persistence and complete dependency locks remain unverified.
 - No paid services, public deployment, broker integration or public license selected. No provenance-validated historical dataset located; synthetic data enables app development while that study stays open.
 
 ## Next concrete step
