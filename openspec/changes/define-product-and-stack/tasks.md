@@ -49,6 +49,14 @@
 
 ## Notes
 
+## 10. User-supplied UI direction and test preparation — 2026-10-09
+
+Scope: preserve and apply the attached apple-design guidance to planned Expo/Android and web UI. Keep the approved stack, native Android navigation and honest experiment states. The user requested thorough preparation/testing and continuation on GPT-6-Sol after this phase.
+
+- [x] 10.1 Preserve the supplied skill text and document native/web adaptations, screen flows, visual/interaction rules and accessibility requirements.
+- [x] 10.2 Add behavioral UI deltas and explicit automated/manual acceptance checks; distinguish planned checks from executed research tests.
+- [x] 10.3 Reconcile current evidence, requirements and handoff, then validate the OpenSpec/documentation updates before model continuation.
+
 ## 9. Final implementation readiness — 2026-09-21
 
 Scope: independently check research and architecture, inspect installed tools without starting services, correct residual planning contradictions, and provide a concrete delivery sequence. Preserve required A1/B/C/D scope; stage a first usable synthetic app slice before the full research program. Minor research packaging/comment cleanup is owned by reproduce-portfolio-learning section 5.

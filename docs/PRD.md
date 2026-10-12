@@ -4,6 +4,8 @@ Version 0.2, corrected 2026-09-21. Planned product behavior; see [DESIGN.md](../
 
 ## Purpose and users
 
+UI direction follows the user-supplied apple-design skill, adapted for Expo/Android and web in [UI-DESIGN.md](UI-DESIGN.md). A synthetic preview shell and seven component tests exist; the full interaction/accessibility, live-service and device checks remain planned.
+
 Help a researcher run, compare and reproduce portfolio-learning experiments, and let an Android user monitor work running on their PC. A reviewer should be able to identify the exact inputs behind a result without trusting a headline number. A contributor should be able to add a strategy through a documented interface.
 
 The contribution is reproducible evidence and reliable execution. Matching the paper, outperforming baselines or finding a flaw is not required for an honest result. Do not present proposed contributions as proven novelty or publication acceptance.

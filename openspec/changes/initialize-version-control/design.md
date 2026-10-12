@@ -30,6 +30,10 @@ Version control is the urgent, low-risk half. Relocation is the disruptive half 
 
 ## Consequences
 
+### Run provenance continuation — 2026-09-23
+
+Record the commit plus tracked/untracked numerical-source and package-declaration dirtiness. Distinguish unavailable Git/no repository explicitly. Documentation-only edits do not change the numerical identity; descriptive Git metadata is outside its digest. The existing source fingerprint and pinned runtime checks still gate resume/repeat. A dirty tree requires a source snapshot before claiming retrieval from that revision; neither a commit nor a fingerprint substitutes for the later full replay contract.
+
 - `docs/REPRODUCTION.md`'s justification for fingerprint-only source identity becomes historical. The fingerprint may remain as a complement — it captures uncommitted working-tree edits that a commit hash alone would miss — but a commit is now available and should be recorded alongside it.
 - A future run manifest can record commit plus cleanliness, enabling the `UNVERIFIABLE` status for dirty-tree runs that `docs/SPEC.md` specifies.
 - The relocation decision remains open. Three options, for a separate change:

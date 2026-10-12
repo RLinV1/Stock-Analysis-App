@@ -7,6 +7,7 @@
 - Docker Compose must independently start the backend and required infrastructure without Kubernetes. The user confirmed a physical Android phone as the mobile client.
 - Selected direction: Deep Learning for Portfolio Optimization research and a mobile experiment lab. DESIGN.md is the current roadmap; docs/SPEC.md is the canonical planned technical contract; docs/archive/ABACUS-DESIGN.superseded.md is historical only. Backend/worker run on this PC; phone access over private Tailscale is deferred and Tailscale is disconnected at the user's request. Compose first, K3s later. Distinguish implemented behavior, planned requirements, and proposed defaults.
 - Build a small working vertical slice first. Never describe planned capabilities as implemented.
+- UI direction: apply the user's preserved apple-design skill at docs/reference/apple-design.md using docs/UI-DESIGN.md for React Native/Android and web adaptations. Keep native Android behavior, accessibility and honest experiment states. Validate rendered UI/device behavior before claiming client completion.
 
 ## Agent handoff
 

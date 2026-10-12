@@ -1,5 +1,26 @@
 ## What changed
 
+## Integrated verification — 2026-10-09
+- Current combined research suite passed 59 tests in 54.22 seconds, including all 10 provenance tests after the ignored-bytecode fix. A0's previously stale implementation checkboxes are reconciled with evidence; task 3.4 is complete.
+- Source revision remains descriptive and read-only. Project Git history/configuration, remotes and OneDrive settings are unchanged. Relocation and publication-scanning follow-ups remain open.
+
+## Source identity documentation — 2026-09-23
+- Updated REPRODUCTION, README, READINESS and TOOLCHAIN to reflect the actual initialized repository and descriptive source-revision metadata. Documented source scope and the dirty-source/snapshot limitation; historical records below remain intact.
+- Task 3.3 complete. Project history/configuration and OneDrive settings are unchanged. Combined source/repeat tests and retained measured evidence are being collected under reproduce-portfolio-learning.
+
+## Source-provenance implementation — 2026-09-23
+- Added descriptive source_revision metadata to new A0 manifests, outside the numerical identity digest. It records the current commit and staged/unstaged/untracked (including ignored) source changes within research Python files and package declarations, or an explicit missing-Git/no-repository/no-commit/error state.
+- Git inspection is read-only, bounded by subprocess timeouts, and does not expose raw Git error output in manifests. Metadata explicitly states that dirty source requires more than the commit for recovery. Existing source fingerprints and immutable resume manifests are unchanged in behavior.
+- Added isolated temporary-repository tests for source/package changes, documentation edits/commits, unavailable Git/repository, Git timeout and actual manifest/resume integration. Tests create commits only in temporary fixtures; no project commit or configuration change is made.
+- Verification: the first targeted run hit nine fixture-setup errors because pytest could not access its pre-existing default temporary directory (WinError 5); no test body ran. Retried with a new uniquely named temporary directory, without modifying existing permissions or files: `python -m pytest research/tests/test_provenance.py -q -p no:cacheprovider --tb=short --basetemp <fresh-temp-directory>` passed all 9 tests in 15.92 seconds.
+- Tasks 5.1 and 5.2 complete. The integration test retained the original manifest across a resume after a documentation-only commit and produced identical numerical identity with the newer descriptive revision on a new run. Source snapshots, full dependency locks, publication scanning and historical performance remain outside this continuation. Added source bytes change the fingerprint; old checkpoints still require their original source.
+- Follow-up live-tree probe caught Git's `--ignored=matching` reporting an ignored __pycache__ directory despite the Python path filter. Switched to `--ignored=traditional` with full untracked enumeration and added a regression distinguishing ignored bytecode from ignored Python source. The absent-repository test now bounds Git discovery with an environment-only ceiling so it also works with a workspace-local temporary root. Task 5.2 reopened pending targeted re-verification.
+- Final targeted verification passed all 10 tests in 15.36 seconds using a fresh ignored `runs/provenance-tests-*` temporary root. Live-tree inspection then recorded commit eab38cc573db43c27ed97bc2420580a57b78464d, expected unstaged/untracked source changes, and ignored_source=false despite bytecode caches. Task 5.2 is complete again. No further source changes followed these checks.
+
+## Continuation scope — 2026-09-23
+- Inspected actual clean working tree and commits: 602d615 initialization, 957c7d8 LF attributes, and eab38cc implementation record. The prior no-Git handoff is stale.
+- Added section 5 before implementation to emit source revision/dirty metadata and test the existing behavioral delta. No new commit, remote, global configuration or relocation performed in this continuation. Implementation checks pending.
+
 Version control established at the project root. Two commits on `main`.
 
 **`602d615` — Initialize repository for Portfolio Lab**

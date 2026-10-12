@@ -23,16 +23,16 @@ Additional primary sources checked in the independent review: [Expo SDK 57 relea
 
 - Python 3.12.14, PyTorch 2.8.0+cpu and filelock 3.32.6 import successfully; CPU tensor arithmetic and pip check pass.
 - Java 21.0.2 exists at C:/Program Files/Java/jdk-21; PATH currently selects Java 24.0.1. Select a maintained Java 21 patch in the build/container lock rather than treating this old installed patch as deployment-ready.
-- Node 22.12.0 requires a compatible update before the current Expo baseline; Node 24 LTS is the reviewed candidate.
+- Update 2026-10-10: Node 22.23.2 was installed through nvm and used explicitly for the Expo 57.0.27/React Native 0.86.3 client. New shells still resolve the older 22.12.0 symlink; verify the executable before tests/builds. Seven component tests, TypeScript, web and Android exports pass. Expo's offline package check uses a bundled map and is less conclusive than an online doctor run. npm audit with dev packages omitted reported 12 moderate and 23 high advisories; triage before release or network exposure.
 - Docker client 28.3.2 and Compose 2.38.2-desktop.1 are installed. Elevated inspection resolved desktop-linux but could not find its engine pipe. Container startup is unverified; the engine must be started/checked for the Compose milestone.
 - adb and k3d were not on PATH; this is not proof they are absent elsewhere and neither blocks local numerical work.
-- No service was started and Tailscale was not changed. No full dependency lock or Git repository currently exists.
+- No service was started and Tailscale was not changed. Update 2026-09-23: Git history now exists; the full dependency lock remains absent.
 
 ### Existing local Python environment
 
 Python 3.12 in project .venv; research requirements pin torch 2.8.0+cpu, numpy 2.2.6, psutil 7.0.0, filelock 3.32.6, pytest 8.4.2 and setuptools 80.9.0. The existing suite passed 17 tests in the review. This is not an ONNX or GPU test. filelock is now explicitly declared at its existing installed version; no package was upgraded.
 
-No API/client dependency lock or clean container installation is verified. OpenSpec 1.13.0 works through its installed CLI; Node 22.12.0 emitted dependency-engine warnings in earlier setup.
+A Spring Boot 4.1.1 parent POM now resolves into ignored workspace-local Maven cache and two Java contract tests pass using JDK 21.0.2. The `mvn.cmd` wrapper failed under the agent sandbox, so Maven's Java launcher was used. This is a tested scaffold, not an API or a full transitive lock. No clean container installation is verified. OpenSpec 1.13.0 works through its installed CLI; Node 22.12.0 emitted dependency-engine warnings in earlier setup.
 
 ## Candidate versions, not upgrade instructions
 

@@ -3,7 +3,7 @@
 Portfolio Lab is a research project plus a mobile interface. You will train a small portfolio-allocation model, compare it with simple strategies, and make its results reproducible. The phone will eventually let you launch and inspect experiments running on your PC.
 
 ## What exists
-A Python/PyTorch prototype with a fixed chronological split, two baselines, saved artifacts, and checkpoint recovery. All 17 existing tests passed in the 2026-09-21 review. There are no verified historical results or working API/mobile services yet.
+A Python/PyTorch prototype has a fixed chronological split, two baselines, saved artifacts, checkpoint recovery, local repeat checks, and a bounded versioned synthetic request command. All 74 research tests passed on 2026-10-11. An Android/web Expo preview shell has seven passing component tests and web/Android bundles. It uses synthetic sample screens and cannot start a real service job. There are no verified historical results or working API/mobile service integration yet.
 
 ## What gets built
 1. A0: finish and measure the bounded local prototype.

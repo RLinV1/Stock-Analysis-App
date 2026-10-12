@@ -3,6 +3,7 @@
 The updated research/product documents conflicted with agent instructions, actual source state, and each other. The user requested correcting the requirements review so another agent can implement a consistent plan.
 
 ## What Changes
+- Adopt the user's supplied apple-design skill as the UI design reference, with explicit React Native/Android adaptations and a thorough UI acceptance plan. Preserve the supplied text for future agents; this adds planned UI behavior, not a built client.
 - Complete a final independent research/architecture review and read-only local toolchain checks; record a staged delivery plan with observable acceptance checks. Correct residual approval/status wording without claiming full-stack readiness.
 - Complete the requested stack sign-off with an explicit user-approved technology list, primary-source setup constraints, daily inference/retraining distinction, and a visual stack overview. No new dependency installation is included.
 

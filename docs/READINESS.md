@@ -1,21 +1,21 @@
 # Readiness and milestone gates
 
-Updated 2026-09-21. **Ready to begin staged implementation with the approved stack.** The full application is not yet runnable; service/client/container work and its acceptance tests remain to be built.
+Updated 2026-10-11. **The local research runner, bounded synthetic request adapter and Android/web client preview are implemented and tested in their stated scopes.** The full application is not yet runnable; service/container work, live client integration and their acceptance tests remain.
 
 ## Current evidence
 
-Independent architecture and research reviews found no reason to replace the approved stack. The current Python prototype passed a fresh 17-test suite in 9.65 seconds; strict OpenSpec validation passed 4/4 and the 41-document link/heading check passed. No historical reproduction, service/client deployment or ONNX parity has been verified. Tailscale is disconnected and deferred.
+Independent architecture and research reviews found no reason to replace the approved stack. The current Python suite passed all 74 tests in 40.35 seconds, including 15 bounded synthetic-request checks. Retained synthetic repeat and interrupted/resumed outputs matched exactly; [A0 evidence](A0-EVIDENCE.md) records measurements and limitations. The [UI plan](UI-DESIGN.md) adopts the supplied apple-design skill; the preview has seven passing component tests, web/Android exports and a dark web visual review at desktop and phone width. No historical reproduction, service/client deployment, physical Android flow or ONNX parity has been verified. Tailscale is disconnected and deferred.
 
 Read-only host checks on 2026-09-21:
 
 | Item | Observed | Required next |
 |---|---|---|
-| Python research | Python 3.12.14 / PyTorch 2.8.0+cpu; CPU tensor smoke and pip consistency check pass | Retain a measured run/report, finish saved-run comparison and exact dependency locks |
-| Java | Java 21.0.2 is installed; PATH selects Java 24.0.1 | Select and lock a maintained Java 21 patch and the Spring build toolchain before backend work |
-| Node/client | Node 22.12.0; below current Expo SDK 57's documented 22.13.x minimum | Candidate: Node 24 LTS + stable Expo 57, exact compatible patches locked/tested before client scaffolding |
+| Python research | Python 3.12.14 / PyTorch 2.8.0+cpu; CPU smoke, 74 tests, bounded local request and retained repeat/resume checks pass | Historical seed/cost evidence and full dependency locks remain |
+| Java | Java 21.0.2, Maven 3.9.10 and Spring Boot 4.1.1 source; six contract/MVC tests pass against the Python fixture and HTTP controls | Maintain Java 21 patch, lock transitive dependencies, run PostgreSQL migration/state and live API checks; shell PATH still selects Java 24 |
+| Node/client | Node 22.23.2 installed and used explicitly; fresh shells still select 22.12.0. Expo 57.0.27 client, seven tests and Android/web exports pass | Select supported Node in each shell; physical Android, light theme, browser accessibility and live API checks remain. npm audit advisories need triage before release |
 | Docker | Client 28.3.2 and Compose 2.38.2-desktop.1 installed; desktop-linux engine pipe unavailable even in elevated inspection | Start Docker Desktop's Linux engine and verify container access when implementing Compose |
 | LocalStack | No account/token or S3 persistence check performed in this review | Configure a private token and verify selected image/plan behavior before the Compose demo |
-| Project identity | Directory is not a Git repository; complete transitive locks absent | Establish version control/source snapshots and tested locks before reproducibility claims |
+| Project identity | Updated 2026-09-23: local Git history exists and source-revision metadata/local repeat are implemented; complete transitive locks absent | Retain source snapshots and tested locks before third-party reproducibility claims |
 
 Installed binaries and successful imports do not prove cross-service compatibility. Version choices and source references are in [TOOLCHAIN.md](TOOLCHAIN.md). No dependency upgrade, service startup, account setup or network reconnection was performed by this review.
 
@@ -49,7 +49,7 @@ The sequence below stages existing milestone requirements; it does not mark a pa
 
 ONNX export/Java inference follows per-fold parity validation and is not needed to view completed experiments. Tailscale remains deferred until the phone milestone. All services run on this PC; the Android app is installed separately. Later paid/public deployment or publication choices are not prerequisites to local implementation.
 
-**Next concrete work:** continue reproduce-portfolio-learning, reconcile existing tasks with source/test evidence, retain a small CPU run and resume/repeat reports, and record the historical-data availability outcome. Do not begin another broad stack review unless implementation exposes new evidence.
+**Next concrete work:** lock the service environment and implement the Spring/PostgreSQL/Python/LocalStack Compose slice. The 74-test research suite and local request CLI pass, but the request adapter does not satisfy the planned v2 replay contract or cross-language job contract. Keep historical seed/cost comparison open in reproduce-portfolio-learning and physical Android checks open for the client. Do not repeat broad stack review without new evidence.
 
 A1 experiments must freeze choices before viewing test outcomes. The annual-rebalancing discrepancy blocks attributing a specific implementation to the paper, not unrelated source development. Normalization experiments belong to training/validation, with all choices recorded.
 

@@ -1,8 +1,10 @@
 # Portfolio Lab — technical specification
 
-Version 0.2, corrected 2026-09-21. This is the **planned** technical contract. Only the A0 prototype listed in section 4 exists. New schema validation, worker orchestration and replay behavior require implementation and tests before being described as working.
+Version 0.2, corrected 2026-09-21. This is the **planned** technical contract except where section 4 names implemented work. The A0 prototype, synthetic Android/web preview and bounded local synthetic request adapter exist. Full v2 manifest schema validation, worker orchestration and replay behavior require implementation and tests before being described as working.
 
 ## 1. Stack
+
+The [UI design and test plan](UI-DESIGN.md) applies the user-supplied apple-design skill while preserving native Android behavior and the state contracts below.
 
 Python/PyTorch research worker; Java 21/Spring Boot API; PostgreSQL/Liquibase; LocalStack S3; React Native/Expo/TypeScript client (physical Android first, web target); Docker Compose independently of Kubernetes; additional K3s path later. ONNX Runtime Java is the planned inference extension, conditional on parity tests. See [TOOLCHAIN.md](TOOLCHAIN.md) for installed versions versus candidates.
 
@@ -36,6 +38,8 @@ Required tests: duplicate submission; key/body conflict; worker crash and lease 
 ## 3. Run manifest and verification
 
 A0 uses its existing schema_version=1 local manifest. The following v2 contract is not wire-compatible; reject unsupported versions rather than guessing a migration. Implement a machine-validated JSON Schema and a CLI verifier in A1 before accepting external manifests; API verification reuses them in B.
+
+The separate [synthetic request v1 schema](../contracts/synthetic-run-request.v1.schema.json) describes a bounded local A0 input and is not this v2 manifest. Python validates and executes that request locally, retaining the accepted request/hash beside an A0 report. No Java, HTTP or durable-job consumer exists yet. Its request hash is not a v2 input-identity digest.
 
 Required groups (unknown fields rejected within each version):
 - identity: schema version, run ID, created_at, method label, immutable input-identity digest.
@@ -89,7 +93,7 @@ A1 must define Sortino/downside denominator, return threshold and zero-loss hand
 
 ## 5. Canonical API and database contract
 
-All routes are planned. JSON errors use application/problem+json with stable codes and no internal paths. Authentication is required for compute-triggering routes before network access. Paginate run lists; enforce bounded request sizes and numeric budgets.
+Routes remain planned as a full service contract. Source-level Spring POST/GET/cancel handlers, a local bearer filter and six passing contract/MVC tests now exist, but no PostgreSQL migration, live HTTP round trip or worker result retrieval has passed. JSON errors use application/problem+json with stable codes and no internal paths. Authentication is required for compute-triggering routes before network access. Paginate run lists; enforce bounded request sizes and numeric budgets.
 
 | Route | Behavior |
 |---|---|

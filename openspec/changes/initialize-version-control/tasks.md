@@ -15,9 +15,16 @@
 
 - [ ] 3.1 Decide the relocation question; OneDrive sync remains active on this tree (design.md records three options)
 - [ ] 3.2 Install pre-commit secret scanning before any public publication (`docs/SECURITY.md` requirement, unmet)
-- [ ] 3.3 Update `docs/REPRODUCTION.md` so source identity cites a commit alongside the content fingerprint
-- [ ] 3.4 Reconcile `reproduce-portfolio-learning` task status against actual source and test evidence (its own task 4.3)
+- [x] 3.3 Update `docs/REPRODUCTION.md` so source identity cites a commit alongside the content fingerprint
+- [x] 3.4 Reconcile `reproduce-portfolio-learning` task status against actual source and test evidence (its own task 4.3)
 
 ## 4. Discovered during implementation
 
 - [x] 4.1 Correct `core.autocrlf`, initially set to `true`, which would have made source fingerprints platform-dependent and broken cross-platform replay comparison. Added `.gitattributes` pinning LF in both repository and working tree
+
+## 5. Source revision in run evidence — 2026-09-23 continuation
+
+- [x] 5.1 Record Git commit and dirty state for numerical source/package declarations, with explicit unavailable/no-repository state; keep this descriptive metadata separate from content-based numerical identity.
+- [x] 5.2 Test clean, staged/unstaged source changes, untracked source, documentation-only edits, and missing Git/repository; verify run manifests retain revision metadata without claiming dirty source is retrievable from a commit alone.
+
+Scope: implement the existing source-revision spec against Claude's initialized repository. No history rewrite, global Git configuration, remote publication, relocation or OneDrive setting change. Source snapshots/full locks remain later work.

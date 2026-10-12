@@ -74,8 +74,7 @@ flowchart TB
     class ONNX pend
 ```
 
-Dashed = not yet built and gated on earlier milestones. **Nothing in this diagram is
-implemented today** beyond parts of the Python worker; see Current evidence below.
+Dashed = not yet built and gated on earlier milestones. The Python runner and a synthetic Android/web client preview exist; no client-to-API connection or other diagram edge is implemented. See Current evidence below.
 
 The two runtimes never call each other synchronously. They share a database contract and an
 artifact contract, which is what makes a job recoverable after an interruption on either side.
@@ -100,7 +99,7 @@ On this Windows PC, the planned local cluster uses k3d to run K3s in Linux conta
 | A1: fuller research | Walk-forward, seven paper baselines, tier comparisons, seed/cost sweeps, CLI manifest verification, honest findings | Subsequent research implementation change; not built |
 | B: distributed execution | API, durable worker jobs, Postgres/Liquibase, LocalStack, Compose; HTTP verification | Subsequent service change; not built |
 | B extension | ONNX export, per-fold parity and explicit served-model selection | Required before inference endpoint ships |
-| C: mobile | Android results/status, web-compatible charts, visible offline cache | Subsequent client change; not built |
+| C: mobile | Android results/status, web-compatible charts, visible offline cache | Synthetic Android/web preview shell and tests exist; live client scope not built |
 | D: deployment | Additional K3s path and recovery demonstration | Subsequent deployment change; not built |
 
 A0 completion does not imply paper replication or A1 completion. A1 can be reported independently before the application ships. Resume wording must describe measured, completed work only.
@@ -120,9 +119,13 @@ The first usable slice is deliberately small but does not reduce any A1/B/C/D co
 
 ## Current evidence
 
-The Python prototype and three test modules exist. The review ran 17 passing tests on 2026-09-21. No verified historical reproduction, API, client, Compose stack, or K3s deployment exists. [REPRODUCTION.md](docs/REPRODUCTION.md) describes current numerical deviations.
+The Python prototype includes source-revision metadata and local saved-run comparison. All 74 research tests pass; retained synthetic repeat/resume outputs match exactly. A bounded versioned synthetic request schema and Python CLI adapter execute one local A0 run, covered by 15 of those tests. [A0-EVIDENCE.md](docs/A0-EVIDENCE.md) records measurements and limits. A synthetic Android/web client preview exists. No verified historical reproduction, API, live client integration, Compose stack, or K3s deployment exists. [REPRODUCTION.md](docs/REPRODUCTION.md) describes current numerical deviations.
 
 ## Access and unresolved choices
+
+UI direction: the user supplied an apple-design skill on 2026-10-09. Apply its interaction/visual principles through [UI-DESIGN.md](docs/UI-DESIGN.md), retaining Expo and native Android conventions. That document includes unrun component, device, accessibility, visual, motion and failure-state checks.
+
+A controlled Transformer comparison was discussed as a possible research extension. It is not an approved replacement for the paper's LSTM baseline or a currently available model option.
 
 Backend and training run on this PC. Tailscale is disconnected at the user's request; do not reconnect or block local work on phone enrollment. Private HTTPS phone access is a later milestone. No public Funnel.
 

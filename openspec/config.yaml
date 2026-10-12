@@ -2,7 +2,8 @@ schema: spec-driven
 context: |
   Selected direction: reproduce a bounded experiment from Deep Learning for
   Portfolio Optimization (Zhang, Zohren, Roberts), then build a mobile experiment
-  lab to replace Flow on the resume. A Python research prototype exists; no API or client yet.
+  lab to replace Flow on the resume. A Python research prototype and Android/web
+  Expo preview shell exist; no API yet.
   Current stack: React Native/Expo client, Java/Spring Boot API, PostgreSQL, Liquibase,
   LocalStack, Docker Compose, and later K3s. Python/PyTorch owns research and background jobs.
   This supersedes Kotlin/Quarkus after the 2026-09-21 document correction request.
@@ -13,6 +14,13 @@ context: |
   are deferred, not prerequisites for local implementation. No Serve endpoint exists.
   One small CPU-capable training run at a time initially; GPU acceleration optional.
   Current PC: Ryzen 9 6900HS, approximately 16 GB RAM, RTX 3060 Laptop GPU 6 GB VRAM.
+  User selected apple-design guidance for UI: read docs/UI-DESIGN.md and the
+  preserved docs/reference/apple-design.md. Adapt to native Android/Expo and web;
+  a synthetic Android/web client shell has seven passing component tests and
+  Android/web exports, but no physical-device or live API verification. The local
+  synthetic request adapter and A0 runner have 74 passing research tests plus a
+  separate completed CLI smoke. A0 has Git provenance and local repeat/resume
+  evidence; historical seed/cost research and v2 replay remain open.
   DESIGN.md is current; docs/archive/ABACUS-DESIGN.superseded.md is historical only.
   Preserve causal evaluation, data provenance, and explicit reproduction deviations.
   Document every logical change immediately in its implementation.md; keep HANDOFF.md

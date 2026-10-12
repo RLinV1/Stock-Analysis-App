@@ -4,6 +4,28 @@ Define Portfolio Lab as infrastructure for reproducible quantitative research, b
 
 ## ADDED Requirements
 
+### Requirement: Provide responsive accessible interactions
+The client SHALL give immediate press feedback while committing actions on release. Gesture transitions SHALL permit interruption and reversal from the displayed state. Essential actions SHALL have accessible non-gesture alternatives, support platform navigation/text scaling, and preserve feedback with reduced motion.
+
+#### Scenario: User reverses an active sheet gesture
+- **WHEN** a user grabs a moving sheet and changes direction
+- **THEN** it follows from its displayed position without a jump or input lock
+
+#### Scenario: Reduced motion or large text is enabled
+- **WHEN** a user enables reduced motion or increases text size
+- **THEN** the interface retains readable content, reachable actions and state feedback without mandatory large spatial animations
+
+### Requirement: Show authoritative experiment transitions
+The client SHALL distinguish local input feedback from server acceptance or completion. It SHALL retain submission identity across retry, label pending cancellation until acknowledged, and never invent progress or infer cancellation from a lost connection.
+
+#### Scenario: Acceptance response is lost
+- **WHEN** the server accepts a run but the client loses its response
+- **THEN** retry uses the original submission identity and resolves the existing job rather than creating another
+
+#### Scenario: Connection is lost during cancellation
+- **WHEN** a cancellation request has no confirmed terminal outcome
+- **THEN** the client reports pending or stale state rather than claiming cancellation completed
+
 ### Requirement: Bound the product away from regulated activity
 The system SHALL NOT contain any code path to a brokerage, order-execution venue, or real-money account. Interfaces presenting portfolio allocations SHALL display a notice that outputs are historical research results, are not investment advice, and do not predict future returns. The system SHALL NOT collect user risk profiles or produce personalized recommendations.
 

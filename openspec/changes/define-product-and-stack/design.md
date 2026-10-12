@@ -25,6 +25,8 @@ Separate input mismatch, unavailable inputs, runtime failure and numerical misma
 Remove dynamic-return impossibility claims. Retain earlier figures as unverified observations pending reconstruction. Use later tradable folds with real pre-test history and VIXY throughout; do not splice price levels. Matched-window comparisons limit protocol confounding.
 
 ### Gates by action
+
+The user-supplied apple-design skill is retained under docs/reference and adapted in docs/UI-DESIGN.md. Preserve native Android semantics, truthful server states and separate client accessibility/motion/device gates. UI package selection and rendered verification remain client implementation work.
 Synthetic implementation does not depend on phone setup or a public license. Data access/publication, network exposure and model serving require their own checks. Tailscale stays disconnected.
 
 ### First usable delivery

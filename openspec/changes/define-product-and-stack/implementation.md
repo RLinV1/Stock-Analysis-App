@@ -1,5 +1,24 @@
 ## What changed
 
+## Requested model continuation — 2026-10-09
+- After final checks passed, sent the implementation handoff to this existing task with model gpt-6-sol, as explicitly requested by the user. The app tool returned success and the same task ID. No new task or sub-agent was created. Runtime model identity was not independently inspected.
+
+## UI planning validation complete — 2026-10-09
+- Section 10 complete: supplied skill retained, native/web UI contract and tests planned, current evidence/handoff reconciled. Strict validation passed 5/5 and 49 Markdown documents passed local file/heading/requirement checks. Supplied skill hash still matches the attachment exactly.
+- Executed verification is 59 research tests plus retained exact repeat/resume comparisons. Client/API/Compose/device checks are explicitly pending, not inferred from planning validation.
+- User requested continuing on GPT-6-Sol after these checks. Model continuation is the next app action; no model switch is claimed by this record.
+
+## UI skill and acceptance plan — 2026-10-09
+- Preserved the supplied skill byte-for-byte at docs/reference/apple-design.md; matching SHA-256 is 479418a8f6539bac4e7f2f862d451671351e1020f6b358fe4a8eeb87924a3432.
+- Added UI-DESIGN with native/web adaptation, four-screen flow, immediate/interruptible interactions, accessibility and truthful server-state rules. Added corresponding product spec scenarios and linked AGENTS, DESIGN, PRD and SPEC for future agents.
+- Defined component, contract, physical Android, web, accessibility, visual, motion, performance and failure-recovery checks. All UI checks are explicitly unrun because no client exists. Tasks 10.1/10.2 complete; final structural validation pending.
+- An initial multi-file patch failed context matching against PRD; inspected files and confirmed nothing from that patch landed, then reapplied with exact contexts. No partial UI implementation is claimed.
+
+## UI design preparation scope — 2026-10-09
+- User supplied an apple-design skill and asked to use it for the UI, test thoroughly, and continue on GPT-6-Sol after planning/testing. Read the complete attachment and caveman response-style skill.
+- Scoped section 10 before UI documentation changes. Preserve the supplied skill and adapt its web examples to Expo/React Native while retaining native Android behavior. Initial-response-only wording does not apply to this specific ongoing UI request; no pause or extra approval is needed.
+- Current executed evidence remains 59 research tests and exact synthetic repeat/resume agreement. Client, API, Compose and phone tests cannot be claimed because those implementations do not exist yet. No model switch has been performed at this point.
+
 ## Final readiness verdict — 2026-09-21
 - Ready to start staged implementation with the approved architecture. Independent architecture/research reviews and host checks are complete; the full application remains unbuilt and unverified. READINESS contains the concrete delivery plan and per-step acceptance evidence.
 - Fresh prototype suite passed 17 tests in 9.65 seconds. Strict OpenSpec validation passed all 4 items; 41 Markdown documents had zero unresolved file/heading links or duplicate requirement titles. Runtime dependency alignment, pip consistency and CLI startup also passed.
