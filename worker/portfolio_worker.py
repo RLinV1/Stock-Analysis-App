@@ -65,8 +65,19 @@ class JobStore:
                 if row is None:
                     return None
                 run_id, raw_request, prior_attempts = row
-                request = json.loads(raw_request) if isinstance(raw_request, str) else raw_request
-                validate_request(request)
+                try:
+                    request = (json.loads(raw_request) if isinstance(raw_request, str)
+                               else raw_request)
+                    validate_request(request)
+                except ValueError:
+                    # Raising here would roll back and reselect the same oldest row
+                    # forever, blocking the queue. Fail it terminally instead.
+                    cur.execute("""
+                        UPDATE experiment_run SET state='FAILED', current_token=NULL,
+                            lease_expires_at=NULL, error_code='invalid_request',
+                            updated_at=CURRENT_TIMESTAMP WHERE id=%s
+                    """, (run_id,))
+                    return None
                 cur.execute("""
                     UPDATE run_attempt SET finished_at=CURRENT_TIMESTAMP,
                         failure_code='lease_expired'

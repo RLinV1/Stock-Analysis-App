@@ -5,7 +5,7 @@ import uuid
 
 import pytest
 
-from portfolio_worker import Claimed, upload_artifacts
+from portfolio_worker import Claimed, JobStore, upload_artifacts
 
 
 class FakeS3:
@@ -56,3 +56,50 @@ def test_missing_report_is_not_publishable(tmp_path):
     (tmp_path / "request.json").write_text("{}", encoding="utf-8")
     with pytest.raises(ValueError, match="missing its report"):
         upload_artifacts(FakeS3(), "lab-artifacts", job(), tmp_path)
+
+
+class FakeCursor:
+    def __init__(self, row):
+        self.row = row
+        self.statements = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def execute(self, sql, params=None):
+        self.statements.append((" ".join(sql.split()), params))
+
+    def fetchone(self):
+        return self.row
+
+
+class FakeConnection:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def transaction(self):
+        return self
+
+    def cursor(self):
+        return self._cursor
+
+
+def test_invalid_stored_request_fails_terminally_instead_of_blocking_queue(monkeypatch):
+    run_id = uuid.UUID(int=9)
+    cursor = FakeCursor((run_id, {"contract_version": 2}, 0))
+    store = JobStore("dbname=unused", "worker-test")
+    monkeypatch.setattr(store, "_connect", lambda: FakeConnection(cursor))
+    assert store.claim() is None
+    sql, params = cursor.statements[-1]
+    assert "state='FAILED'" in sql and "error_code='invalid_request'" in sql
+    assert params == (run_id,)
+    assert not any("INSERT INTO run_attempt" in statement for statement, _ in cursor.statements)
