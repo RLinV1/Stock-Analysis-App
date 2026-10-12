@@ -1,6 +1,6 @@
 # Project handoff
 
-Updated 2026-10-11.
+Updated 2026-10-12.
 
 ## Latest direction
 - User requested continued implementation after Claude's Git work, thorough preparation/testing, the supplied apple-design UI skill, then continuation on GPT-6-Sol. Planning/research checks are complete. The app accepted a continuation message to this task with model gpt-6-sol on 2026-10-09; this records the accepted request, not an independent runtime-model inspection.
@@ -14,11 +14,11 @@ Updated 2026-10-11.
 - All 59 tests passed in 54.22s. Independent code review found no material blockers. Final OpenSpec validation passed 5/5; 49 Markdown documents had zero link/heading/duplicate-requirement issues. Git diff --check passed; retained source/artifact/skill hashes verified.
 - [A0-EVIDENCE](../docs/A0-EVIDENCE.md) links retained runs under runs/cpu-evidence-2026-10-09-a3ea8ef5. Fresh CLI repeat and one-epoch interruption/resume matched with zero maximum absolute difference; reference hashes and resumed manifest remained unchanged.
 - Synthetic 420 rows, three epochs, lookback 50, hidden size 64, seed 7, 1 bps: 5.899s reference call, 0.421s narrower training/evaluation timer, 284.81 MiB maximum sampled RSS. Not a continuous peak, historical result or performance benchmark; GPU untested.
-- Git HEAD remains eab38cc573db43c27ed97bc2420580a57b78464d. Implementation is uncommitted. Dirty-source metadata is explicit; no source snapshot/full lock or external v2 replay exists.
+- Work is committed on local branch `feat/synthetic-service-slice` as Conventional Commits (user request 2026-10-12); `main` stays at eab38cc. No remote or push. Retained A0 runs recorded dirty-source metadata from before these commits; no source snapshot/full lock or external v2 replay exists.
 - No API, Compose, durable worker, K3s, ONNX or historical research verification. The Expo shell has seven passing component tests and Android/web exports, but no physical-device check. No services, remotes, commits or network access configuration.
 
 ## Active changes
-- [build-synthetic-service-slice](changes/build-synthetic-service-slice/tasks.md): task 1 complete. Spring contract/HTTP source, bearer filter, Liquibase migration and JDBC repository added; 7 Java tests pass (including offline changelog parse). Python claim/lease/S3 worker source and 3 fake-S3 tests added; pinned psycopg/boto3 imports, pip check and combined 77-test research/worker suite pass. Compose/Dockerfiles added; config parses with throwaway values, images/startup unrun. Docker engine pipe absent after elevated launch; LocalStack token unconfigured. Tasks 2–5 remain open.
+- [build-synthetic-service-slice](changes/build-synthetic-service-slice/tasks.md): task 1 complete. Spring contract/HTTP source, bearer filter, Liquibase migration and JDBC repository added; 9 Java tests pass (including offline changelog parse). 2026-10-12 security review fixed a bearer-filter bypass via `;` path parameters (now fail-closed, only exact `/actuator/health` public) and a worker queue-starvation defect on invalid stored requests; worker tests 4/4. Python claim/lease/S3 worker source and 3 fake-S3 tests added; pinned psycopg/boto3 imports, pip check and combined 77-test research/worker suite pass. Compose/Dockerfiles added; config parses with throwaway values, images/startup unrun. Docker engine pipe still absent on 2026-10-12 recheck; LocalStack token unconfigured. Tasks 2–5 remain open.
 - [reproduce-portfolio-learning](changes/reproduce-portfolio-learning/tasks.md): 17/18 tasks complete: tested runner, repeat, evidence and final validation. Historical seed/cost task 4.2 remains open. Do not archive as fully complete.
 - [initialize-version-control](changes/initialize-version-control/tasks.md): Claude's Git/LF setup plus verified source-revision continuation. OneDrive relocation choice and publication secret-scanning follow-ups remain open.
 - [define-product-and-stack](changes/define-product-and-stack/tasks.md): section 10 UI skill/acceptance plan complete and validated. Broader research/default tasks remain open.
