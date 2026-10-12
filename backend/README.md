@@ -1,0 +1,5 @@
+# Backend status
+
+The Java 21/Spring Boot 4.1.1 project compiles a strict consumer of the local synthetic request v1, matching the [Python hash fixture](../contracts/examples/synthetic-smoke.v1.sha256). POST/GET/cancel routes, a local bearer filter, Liquibase migration source and a JDBC repository are now present. Six Java contract/MVC tests pass. PostgreSQL transitions, actual migration, worker, S3, Compose and a live HTTP server remain unverified; this is not yet a working service.
+
+With Java 21 and Maven 3.9.10 available, run `mvn -f backend/pom.xml test` from the repository root. This host's `mvn.cmd` wrapper returned `Access is denied` under the agent sandbox, so verification launched Maven's Java entry point directly with workspace-local `.maven-repo/` and `.maven-tmp/` directories. Maven Central access was needed once to resolve the pinned Spring Boot parent and test provider. Six JUnit tests passed on 2026-10-11. The parent POM manages dependency versions, but a complete transitive dependency lock and container build are still open.

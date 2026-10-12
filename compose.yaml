@@ -1,0 +1,114 @@
+name: portfolio-lab
+
+services:
+  postgres:
+    image: postgres:17.11
+    environment:
+      POSTGRES_DB: portfolio_lab
+      POSTGRES_USER: portfolio_lab
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portfolio_lab -d portfolio_lab"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 15s
+
+  localstack:
+    image: localstack/localstack:2026.8.2
+    environment:
+      SERVICES: s3
+      PERSISTENCE: "1"
+      LOCALSTACK_AUTH_TOKEN: "${LOCALSTACK_AUTH_TOKEN:?set LOCALSTACK_AUTH_TOKEN in .env}"
+    volumes:
+      - localstack_state:/var/lib/localstack
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:4566/_localstack/health >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+
+  s3-init:
+    image: localstack/localstack:2026.8.2
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - >
+        awslocal --endpoint-url=http://localstack:4566 s3api head-bucket
+        --bucket portfolio-lab-artifacts >/dev/null 2>&1 ||
+        awslocal --endpoint-url=http://localstack:4566 s3api create-bucket
+        --bucket portfolio-lab-artifacts
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    depends_on:
+      localstack:
+        condition: service_healthy
+    restart: "no"
+
+  migrate:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["--spring.main.web-application-type=none"]
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/portfolio_lab
+      DATABASE_USER: portfolio_lab
+      DATABASE_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}"
+      PORTFOLIO_OPERATOR_TOKEN: "${PORTFOLIO_OPERATOR_TOKEN:?set PORTFOLIO_OPERATOR_TOKEN in .env}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/portfolio_lab
+      DATABASE_USER: portfolio_lab
+      DATABASE_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}"
+      PORTFOLIO_OPERATOR_TOKEN: "${PORTFOLIO_OPERATOR_TOKEN:?set PORTFOLIO_OPERATOR_TOKEN in .env}"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      s3-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 4s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_NAME: portfolio_lab
+      DATABASE_USER: portfolio_lab
+      DATABASE_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}"
+      S3_ENDPOINT_URL: http://localstack:4566
+      ARTIFACT_BUCKET: portfolio-lab-artifacts
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      s3-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  localstack_state:

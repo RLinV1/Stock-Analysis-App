@@ -1,0 +1,4 @@
+databaseChangeLog:
+  - include:
+      file: 001-synthetic-jobs.sql
+      relativeToChangelogFile: true
