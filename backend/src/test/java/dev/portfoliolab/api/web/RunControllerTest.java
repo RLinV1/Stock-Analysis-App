@@ -9,10 +9,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.UUID;
 
 import dev.portfoliolab.api.contract.SyntheticRequestContract.Accepted;
 import dev.portfoliolab.api.jobs.RunRepository;
+import dev.portfoliolab.api.jobs.RunRepository.IdempotencyConflict;
+import dev.portfoliolab.api.jobs.RunRepository.Snapshot;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -88,9 +91,69 @@ class RunControllerTest {
         assertEquals(0, repository.submissions);
     }
 
+    @Test
+    void reportsConflictingIdempotencyReuse() throws Exception {
+        byte[] body = Files.readAllBytes(Path.of("..", "contracts", "examples", "synthetic-smoke.v1.json"));
+        repository.conflict = true;
+        mvc().perform(post("/api/v1/runs").contentType("application/json")
+                .header("Authorization", "Bearer unit-test-secret-123")
+                .header("Idempotency-Key", "one").content(body))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("idempotency_conflict"));
+    }
+
+    @Test
+    void rejectsMissingIdempotencyKey() throws Exception {
+        byte[] body = Files.readAllBytes(Path.of("..", "contracts", "examples", "synthetic-smoke.v1.json"));
+        mvc().perform(post("/api/v1/runs").contentType("application/json")
+                .header("Authorization", "Bearer unit-test-secret-123").content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("invalid_request"));
+        assertEquals(0, repository.submissions);
+    }
+
+    @Test
+    void statusHidesManifestUntilComplete() throws Exception {
+        UUID id = UUID.randomUUID();
+        repository.snapshot = new Snapshot(id, "RUNNING", 1, null, null, null);
+        mvc().perform(get("/api/v1/runs/" + id).header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("RUNNING"))
+                .andExpect(jsonPath("$.attemptCount").value(1))
+                .andExpect(jsonPath("$.manifestAvailable").value(false));
+        repository.snapshot = new Snapshot(id, "COMPLETE", 1, "runs/key", "a".repeat(64), null);
+        mvc().perform(get("/api/v1/runs/" + id).header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(jsonPath("$.manifestAvailable").value(true))
+                .andExpect(jsonPath("$.manifestKey").doesNotExist());
+    }
+
+    @Test
+    void unknownRunIsNotFoundForStatusAndCancel() throws Exception {
+        UUID id = UUID.randomUUID();
+        mvc().perform(get("/api/v1/runs/" + id).header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isNotFound());
+        mvc().perform(post("/api/v1/runs/" + id + "/cancel")
+                .header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void cancelReturnsResultingState() throws Exception {
+        UUID id = UUID.randomUUID();
+        repository.snapshot = new Snapshot(id, "CANCEL_REQUESTED", 1, null, null, null);
+        mvc().perform(post("/api/v1/runs/" + id + "/cancel")
+                .header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("CANCEL_REQUESTED"));
+        assertEquals(1, repository.cancels);
+    }
+
     private static final class FakeRepository extends RunRepository {
         private int submissions;
+        private int cancels;
         private UUID nextId;
+        private boolean conflict;
+        private Snapshot snapshot;
 
         private FakeRepository() {
             super(null);
@@ -101,7 +164,22 @@ class RunControllerTest {
             submissions++;
             assertEquals("local", operator);
             assertEquals("one", key);
+            if (conflict) {
+                throw new IdempotencyConflict();
+            }
             return new Submission(nextId, true);
+        }
+
+        @Override
+        public Optional<Snapshot> find(String operator, UUID id) {
+            assertEquals("local", operator);
+            return Optional.ofNullable(snapshot).filter(row -> row.id().equals(id));
+        }
+
+        @Override
+        public Optional<Snapshot> cancel(String operator, UUID id) {
+            cancels++;
+            return find(operator, id);
         }
     }
 }
