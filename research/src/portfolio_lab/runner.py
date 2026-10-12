@@ -24,6 +24,7 @@ from filelock import FileLock
 from .data import file_hash, load_dataset, make_samples, save_json
 from .metrics import CONVENTIONS, baseline_weights, evaluate
 from .model import Allocator, negative_sharpe
+from .provenance import source_revision
 
 
 @dataclass(frozen=True)
@@ -115,6 +116,7 @@ def run_experiment(dataset_path: Path, config: RunConfig, output_root: Path,
             manifest = {"schema_version": 1, "run_id": run_dir.name,
                         "created_at": datetime.now(timezone.utc).isoformat(), **identity,
                         "identity_sha256": identity_hash,
+                        "source_revision": source_revision(),
                         "method_label": "synthetic-smoke" if dataset.manifest["kind"] == "synthetic" else "paper-inspired",
                         "conventions": CONVENTIONS,
                         "scaler": {"mean": samples.mean.tolist(), "scale": samples.scale.tolist()},

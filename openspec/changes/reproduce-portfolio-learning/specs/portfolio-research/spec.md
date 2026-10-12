@@ -36,6 +36,14 @@ Every run SHALL save its dataset checksum, code and dependency versions, seed, d
 - **WHEN** the saved manifest is used to repeat a run
 - **THEN** the runner uses the recorded inputs/settings and reports numerical differences under a documented tolerance and determinism scope
 
+#### Scenario: Local repeat reference cannot be used
+- **WHEN** an A0 reference has an unsupported schema, incomplete artifacts, or code/data/config/runtime that differs from its recorded identity
+- **THEN** local repeat reports the specific unavailable or incompatible input without training or altering the reference
+
+#### Scenario: Local repeat results differ
+- **WHEN** repeated metrics, dated return series, preprocessing or allocations differ beyond absolute tolerance 1e-7, or dates/order/counts/null reasons differ
+- **THEN** the comparison reports the differences and does not mark the repeat as matched; run identifiers and resource measurements are excluded from numerical comparison
+
 ### Requirement: Support bounded local execution and recovery
 The runner SHALL offer CPU execution without cloud or broker credentials and a small synthetic smoke configuration. Epoch budgets SHALL be configurable. Completed-epoch checkpoints SHALL permit resumption with matching configuration and data; incompatible checkpoints SHALL be rejected. Measured elapsed time and peak-memory measurement availability SHALL be included in run evidence.
 

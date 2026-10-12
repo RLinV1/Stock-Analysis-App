@@ -1,0 +1,6 @@
+{
+  "contract_version": 1,
+  "dataset": {"kind": "synthetic", "observations": 140, "seed": 2026},
+  "model": {"lookback": 10, "hidden_size": 8, "epochs": 1},
+  "execution": {"seed": 7, "cost_bps": 1}
+}

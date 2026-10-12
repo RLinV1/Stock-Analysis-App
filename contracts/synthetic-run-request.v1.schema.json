@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Portfolio Lab local synthetic run request v1",
+  "description": "Bounded A0 fixed-holdout input; not the v2 replay manifest or public HTTP API.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "dataset", "model", "execution"],
+  "properties": {
+    "contract_version": {"type": "integer", "const": 1},
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "observations", "seed"],
+      "properties": {
+        "kind": {"type": "string", "const": "synthetic"},
+        "observations": {"type": "integer", "minimum": 140, "maximum": 420},
+        "seed": {"type": "integer", "minimum": 0, "maximum": 4294967295}
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lookback", "hidden_size", "epochs"],
+      "properties": {
+        "lookback": {"type": "integer", "minimum": 10, "maximum": 50},
+        "hidden_size": {"type": "integer", "minimum": 8, "maximum": 64},
+        "epochs": {"type": "integer", "minimum": 1, "maximum": 3}
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seed", "cost_bps"],
+      "properties": {
+        "seed": {"type": "integer", "minimum": 0, "maximum": 4294967295},
+        "cost_bps": {"type": "integer", "minimum": 0, "maximum": 100}
+      }
+    }
+  }
+}

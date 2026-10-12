@@ -6,6 +6,8 @@ from pathlib import Path
 
 from .data import load_dataset, synthetic_dataset
 from .runner import RunConfig, run_experiment
+from .repeat import repeat_experiment
+from .service_contract import execute_synthetic_request, load_request
 
 
 def main() -> None:
@@ -23,10 +25,24 @@ def main() -> None:
     run.add_argument("--cost-bps", type=float, default=1.0)
     run.add_argument("--resume", type=Path)
     run.add_argument("--stop-after-epochs", type=int)
+    repeat = commands.add_parser("repeat", help="Repeat a completed local A0 run and compare its outputs")
+    repeat.add_argument("reference", type=Path, help="Completed run directory, including its copied dataset")
+    repeat.add_argument("--output", type=Path, default=Path("runs"))
+    service_run = commands.add_parser("synthetic-run", help="Execute a bounded versioned synthetic request locally")
+    service_run.add_argument("request", type=Path, help="Synthetic request v1 JSON")
+    service_run.add_argument("--output", type=Path, default=Path("runs"))
     args = parser.parse_args()
     try:
         if args.command == "synthetic":
             print(synthetic_dataset(args.output, args.observations))
+        elif args.command == "repeat":
+            comparison_path = repeat_experiment(args.reference, args.output)
+            print(comparison_path)
+            outcome = json.loads(comparison_path.read_text(encoding="utf-8"))["outcome"]
+            if outcome != "matched":
+                parser.exit(1, f"Repeat outcome: {outcome}; see saved comparison report.\n")
+        elif args.command == "synthetic-run":
+            print(execute_synthetic_request(load_request(args.request), args.output))
         else:
             if args.config:
                 config = RunConfig(**json.loads(args.config.read_text()))

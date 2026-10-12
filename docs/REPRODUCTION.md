@@ -1,5 +1,7 @@
 # Paper audit and implementation contract
 
+The separate bounded [synthetic request v1](../contracts/synthetic-run-request.v1.schema.json) now drives a local A0 experiment through `portfolio_lab.cli synthetic-run`. It retains a canonical request and SHA-256 beside the existing run artifacts. This is a development input contract, not the paper's historical data, the planned v2 replay manifest, or a durable service job. The full 74-test research suite passed on 2026-10-11; no independent JSON Schema validator or cross-language consumer has run yet.
+
 This project implements a bounded **paper-inspired** experiment, not a verified reproduction of the published performance. Reference: Zhang, Zohren, Roberts, [Deep Learning for Portfolio Optimization, v3](https://arxiv.org/html/2005.13665v3), especially equations 2-7 and section 4.3.
 
 | Item | Paper | First implementation |
@@ -34,7 +36,13 @@ Reports use 252 trading periods/year, population standard deviation, arithmetic-
 
 ## Reproducibility boundary
 
-One CPU thread and deterministic PyTorch algorithms are used for local reproducibility. Checkpoint equality is verified on the same environment and data. Cross-version, cross-device, and CPU/GPU bitwise identity is not promised. Content fingerprints capture the numerical source files, not just a git commit, since this directory was not a git repository at initial implementation.
+One CPU thread and deterministic PyTorch algorithms are used for local reproducibility. Checkpoint equality is verified on the same environment and data. Cross-version, cross-device, and CPU/GPU bitwise identity is not promised.
+
+Claude established local Git history in September 2026. New run manifests now record a descriptive source_revision: commit, source_dirty, staged/unstaged/untracked source flags, inspected scope and explicit unavailable/error states. The scope is research Python source and package declarations; documentation-only edits do not imply numerical source changes. Dirty source cannot be recovered from the commit alone. The content fingerprint and runtime versions still enforce numerical resume/repeat identity; Git metadata is outside that digest. Existing manifests are not rewritten to add new provenance.
+
+The local `repeat` command re-trains a completed A0 experiment from its saved settings and copied dataset, then records differences in metrics, dated series, history, preprocessing and allocations. Absolute tolerance is 1e-7 with no relative tolerance. Counts, order, dates, structure and null explanations must agree exactly; run IDs and resource measurements are excluded. The original run stays unchanged. Invalid references are rejected before training, and all repeat outcomes retain a separate report.
+
+Only local A0 schema 1 is supported. This comparison does not certify source retrieval, a complete dependency lock, or artifact authenticity; model/checkpoint files must exist but are never deserialized during repeat. The planned v2 external-manifest verification remains A1 work. [README](../README.md#run-the-local-prototype) contains execution and recovery commands.
 
 ## Milestone evidence
 

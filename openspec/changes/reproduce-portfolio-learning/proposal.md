@@ -4,6 +4,8 @@ The user selected a deep-learning portfolio research project to replace Flow on 
 
 ## What Changes
 
+- Continue after the version-control work: implement a bounded local `repeat` command for completed A0 runs, compare saved outputs without mutating the reference, retain CPU smoke/resume/repeat evidence, and reconcile the checklist with verified artifacts. This does not implement the externally supplied v2 manifest verifier.
+
 - Final-readiness cleanup: declare the directly imported filelock dependency at its existing installed version, remove the stale CLI service reference, and align validation-split/stack descriptions with actual A0 behavior. No numerical algorithm or dependency upgrade is included.
 
 - Establish the selected direction and supersede the Abacus proposal while preserving it as historical context.
