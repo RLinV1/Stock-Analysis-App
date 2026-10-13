@@ -2,7 +2,7 @@
 
 A mobile experiment lab for reproducible portfolio-learning research.
 
-**Current state:** the Python/PyTorch prototype supports local training, checkpoint recovery and a saved-experiment repeat comparison. New runs include Git revision metadata. All 74 research tests pass, including 15 new bounded synthetic-request tests; retained synthetic repeat and resume matched exactly. See [A0 evidence](docs/A0-EVIDENCE.md). Spring Boot now has source-level submit/status/cancel routes, migration/repository code and six passing contract/MVC tests, but no live database verification. An Android/web Expo preview shell has seven passing component tests and successful web/Android bundles; it cannot submit experiments. No verified historical reproduction, working API, live mobile flow, or container deployment exists yet.
+**Current state:** the Python/PyTorch prototype supports local training, checkpoint recovery and a saved-experiment repeat comparison. New runs include Git revision metadata. All 74 research tests pass, including 15 new bounded synthetic-request tests; retained synthetic repeat and resume matched exactly. See [A0 evidence](docs/A0-EVIDENCE.md). Spring Boot now has source-level submit/status/cancel/manifest routes, migration/repository code and 24 passing Java tests, but no live database or S3 verification. A Python worker has 8 passing unit tests. An Android/web Expo preview shell has 13 passing component tests and successful web/Android bundles; it cannot submit experiments. No verified historical reproduction, working API, live mobile flow, or container deployment exists yet.
 
 ## What this investigates
 

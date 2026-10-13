@@ -52,9 +52,11 @@ describe('Portfolio Lab preview', () => {
   });
 
   test.each([
-    ['Lookback days', '0', /Lookback must be a whole number from 10 to 100/],
-    ['Lookback days', 'not-a-number', /Lookback must be a whole number from 10 to 100/],
-    ['Training epochs', '6', /Epochs must be a whole number from 1 to 5/],
+    ['Lookback days', '0', /Lookback must be a whole number from 10 to 50/],
+    ['Lookback days', 'not-a-number', /Lookback must be a whole number from 10 to 50/],
+    ['Lookback days', '51', /Lookback must be a whole number from 10 to 50/],
+    ['Training epochs', '0', /Epochs must be a whole number from 1 to 3/],
+    ['Training epochs', '4', /Epochs must be a whole number from 1 to 3/],
   ])('validates %s value %s inline', async (label, invalidValue, error) => {
     await render(<App />);
     await fireEvent.press(screen.getByRole('button', { name: 'New experiment' }));
@@ -63,5 +65,19 @@ describe('Portfolio Lab preview', () => {
     await fireEvent(field, 'blur');
     expect(screen.getByText(error)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Start experiment' }).props.accessibilityState.disabled).toBe(true);
+  });
+
+  test.each([
+    ['Lookback days', '10'],
+    ['Lookback days', '50'],
+    ['Training epochs', '1'],
+    ['Training epochs', '3'],
+  ])('accepts %s boundary value %s', async (label, value) => {
+    await render(<App />);
+    await fireEvent.press(screen.getByRole('button', { name: 'New experiment' }));
+    const field = screen.getByLabelText(label);
+    await fireEvent.changeText(field, value);
+    await fireEvent(field, 'blur');
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

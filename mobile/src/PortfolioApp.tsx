@@ -17,6 +17,10 @@ function Card({ children, colors }: { children: React.ReactNode; colors: Colors 
   return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>{children}</View>;
 }
 
+// Synthetic request v1 bounds (contracts/synthetic-run-request.v1.schema.json).
+const LOOKBACK = { min: 10, max: 50 };
+const EPOCHS = { min: 1, max: 3 };
+
 function integerInRange(value: string, min: number, max: number) {
   return /^\d+$/.test(value) && Number(value) >= min && Number(value) <= max;
 }
@@ -67,10 +71,10 @@ export default function PortfolioApp() {
         {text('Synthetic sample · LSTM research baseline. These fields are a local preview; no experiment will be sent.', true)}
         <Text style={[styles.fieldLabel, { color: colors.text }]}>Lookback days</Text>
         <TextInput accessibilityLabel="Lookback days" keyboardType="number-pad" onBlur={() => setEdited((current) => ({ ...current, lookback: true }))} onChangeText={setLookback} style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.bg }]} value={lookback} />
-        {edited.lookback && !integerInRange(lookback, 10, 100) && <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>Lookback must be a whole number from 10 to 100.</Text>}
+        {edited.lookback && !integerInRange(lookback, LOOKBACK.min, LOOKBACK.max) && <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{`Lookback must be a whole number from ${LOOKBACK.min} to ${LOOKBACK.max}.`}</Text>}
         <Text style={[styles.fieldLabel, { color: colors.text }]}>Training epochs</Text>
         <TextInput accessibilityLabel="Training epochs" keyboardType="number-pad" onBlur={() => setEdited((current) => ({ ...current, epochs: true }))} onChangeText={setEpochs} style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.bg }]} value={epochs} />
-        {edited.epochs && !integerInRange(epochs, 1, 5) && <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>Epochs must be a whole number from 1 to 5 for this preview.</Text>}
+        {edited.epochs && !integerInRange(epochs, EPOCHS.min, EPOCHS.max) && <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{`Epochs must be a whole number from ${EPOCHS.min} to ${EPOCHS.max}.`}</Text>}
         <View style={styles.gap} />
         <Action label="Start experiment" onPress={() => {}} colors={colors} disabled />
         <Text style={[styles.helper, { color: colors.secondary }]}>Start unavailable: the service is not connected. No job is queued.</Text>
