@@ -1,8 +1,10 @@
 import hashlib
 import io
 import json
+import re
 import time
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -178,3 +180,60 @@ def test_run_one_records_failure_and_reraises(monkeypatch):
     with pytest.raises(RuntimeError, match="training failed"):
         run_one(store, FakeS3(), "lab-artifacts", job())
     assert store.calls == ["fail_owned"]
+
+
+ARTIFACT_INDEX_SCHEMA = (Path(__file__).resolve().parents[2]
+                         / "contracts" / "artifact-index.v1.schema.json")
+
+
+def publish_nested_run(tmp_path):
+    (tmp_path / "report.json").write_text('{"state":"completed"}', encoding="utf-8")
+    (tmp_path / "dataset").mkdir()
+    (tmp_path / "dataset" / "prices.csv").write_text("day,price\n0,1.0\n", encoding="utf-8")
+    s3 = FakeS3()
+    key, _ = upload_artifacts(s3, "lab-artifacts", job(), tmp_path)
+    return s3.objects[("lab-artifacts", key)]
+
+
+def test_artifact_index_matches_published_contract(tmp_path):
+    # Explicit checks for the constraints the v1 schema declares; not a general
+    # JSON Schema engine, so new schema keywords need matching assertions here.
+    schema = json.loads(ARTIFACT_INDEX_SCHEMA.read_text(encoding="utf-8"))
+    index = json.loads(publish_nested_run(tmp_path))
+
+    assert schema["additionalProperties"] is False
+    assert set(index) == set(schema["required"]) == set(schema["properties"])
+    assert index["kind"] == schema["properties"]["kind"]["const"]
+    assert str(uuid.UUID(index["run_id"])) == index["run_id"] == str(job().run_id)
+    assert str(uuid.UUID(index["attempt_id"])) == index["attempt_id"] == str(job().attempt_id)
+
+    files_schema = schema["properties"]["files"]
+    item_schema = files_schema["items"]
+    required_path = files_schema["contains"]["properties"]["path"]["const"]
+    assert isinstance(index["files"], list)
+    assert len(index["files"]) >= files_schema["minItems"]
+    assert any(item["path"] == required_path for item in index["files"])
+    assert item_schema["additionalProperties"] is False
+    assert set(item_schema["required"]) == set(item_schema["properties"])
+
+    prefix = f"runs/{job().run_id}/attempts/{job().attempt_id}/"
+    pattern = item_schema["properties"]["sha256"]["pattern"]
+    for item in index["files"]:
+        assert set(item) == set(item_schema["required"])
+        assert isinstance(item["path"], str) and item["path"]
+        assert isinstance(item["key"], str) and item["key"]
+        assert re.fullmatch(pattern, item["sha256"])
+        assert type(item["bytes"]) is int and item["bytes"] >= 0
+        assert "\\" not in item["path"]
+        assert item["key"] == prefix + item["path"]
+        content = (tmp_path / item["path"]).read_bytes()
+        assert item["sha256"] == hashlib.sha256(content).hexdigest()
+        assert item["bytes"] == len(content)
+    assert [item["path"] for item in index["files"]] == ["dataset/prices.csv", "report.json"]
+
+
+def test_artifact_index_bytes_are_canonical(tmp_path):
+    content = publish_nested_run(tmp_path)
+    canonical = json.dumps(json.loads(content), sort_keys=True,
+                           separators=(",", ":")).encode()
+    assert content == canonical
