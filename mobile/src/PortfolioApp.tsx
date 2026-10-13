@@ -1,6 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { BackHandler, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
+// Synthetic request v1 bounds live in ./api/contract (contracts/synthetic-run-request.v1.schema.json).
+import { EPOCHS, LOOKBACK } from './api/contract';
 
 type Page = 'experiments' | 'new' | 'detail' | 'results';
 type Colors = { bg: string; surface: string; text: string; secondary: string; accent: string; onAccent: string; border: string; muted: string; error: string };
@@ -16,10 +18,6 @@ function Action({ label, onPress, colors, disabled = false, quiet = false }: { l
 function Card({ children, colors }: { children: React.ReactNode; colors: Colors }) {
   return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>{children}</View>;
 }
-
-// Synthetic request v1 bounds (contracts/synthetic-run-request.v1.schema.json).
-const LOOKBACK = { min: 10, max: 50 };
-const EPOCHS = { min: 1, max: 3 };
 
 function integerInRange(value: string, min: number, max: number) {
   return /^\d+$/.test(value) && Number(value) >= min && Number(value) <= max;
