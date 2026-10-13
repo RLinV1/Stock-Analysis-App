@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import dev.portfoliolab.api.contract.SyntheticRequestContract;
 import dev.portfoliolab.api.jobs.ArtifactStore;
 import dev.portfoliolab.api.jobs.RunRepository;
+import dev.portfoliolab.api.jobs.RunResults;
 import dev.portfoliolab.api.jobs.RunRepository.Snapshot;
 import dev.portfoliolab.api.jobs.RunRepository.Summary;
 import org.springframework.http.MediaType;
@@ -90,18 +91,44 @@ public final class RunController {
         if (snapshot == null) {
             return ResponseEntity.notFound().build();
         }
-        return immutableJson(artifacts.readVerified(snapshot.manifestKey(), snapshot.manifestSha256()));
+        return immutable(artifacts.readVerified(snapshot.manifestKey(), snapshot.manifestSha256()));
     }
 
     @GetMapping(path = "/{id}/report", produces = "application/json")
     public ResponseEntity<byte[]> report(@PathVariable UUID id) {
+        byte[] report = verifiedArtifact(id, "report.json");
+        return report == null ? ResponseEntity.notFound().build() : immutable(report);
+    }
+
+    @GetMapping(path = "/{id}/equity-curve", produces = "application/json")
+    public ResponseEntity<RunResults.EquityCurve> equityCurve(@PathVariable UUID id) {
+        byte[] report = verifiedArtifact(id, "report.json");
+        return report == null ? ResponseEntity.notFound().build()
+                : immutable(RunResults.equityCurve(report));
+    }
+
+    @GetMapping(path = "/{id}/allocations", produces = "application/json")
+    public ResponseEntity<RunResults.Allocations> allocations(@PathVariable UUID id) {
+        byte[] csv = verifiedArtifact(id, "allocations.csv");
+        return csv == null ? ResponseEntity.notFound().build()
+                : immutable(RunResults.allocations(csv));
+    }
+
+    /** Verified bytes of one top-level artifact named by the verified index; null for an unknown run. */
+    private byte[] verifiedArtifact(UUID id, String path) {
         Snapshot snapshot = completed(id);
         if (snapshot == null) {
-            return ResponseEntity.notFound().build();
+            return null;
         }
         byte[] index = artifacts.readVerified(snapshot.manifestKey(), snapshot.manifestSha256());
-        ArtifactStore.IndexedFile report = ArtifactStore.reportEntry(index, snapshot.manifestKey());
-        return immutableJson(artifacts.readVerified(report.key(), report.sha256()));
+        ArtifactStore.IndexedFile file = ArtifactStore.entry(index, snapshot.manifestKey(), path);
+        return artifacts.readVerified(file.key(), file.sha256());
+    }
+
+    private static <T> ResponseEntity<T> immutable(T body) {
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+                .header("Cache-Control", "private, max-age=31536000, immutable")
+                .body(body);
     }
 
     /** Null for an unknown run; throws before any storage read when no result is registered. */
@@ -111,12 +138,6 @@ public final class RunController {
             throw new RunNotComplete();
         }
         return snapshot;
-    }
-
-    private static ResponseEntity<byte[]> immutableJson(byte[] content) {
-        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
-                .header("Cache-Control", "private, max-age=31536000, immutable")
-                .body(content);
     }
 
     @PostMapping(path = "/{id}/cancel", produces = "application/json")

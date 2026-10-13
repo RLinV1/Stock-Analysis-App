@@ -31,7 +31,7 @@ public class ArtifactStore {
     static final String INDEX_INVALID = "artifact_index_invalid";
     private static final String REPORT_PATH = "report.json";
     private static final Pattern SHA256 = Pattern.compile("[0-9a-f]{64}");
-    private static final JsonMapper JSON = JsonMapper.builder(
+    static final JsonMapper JSON = JsonMapper.builder(
             JsonFactory.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build())
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();
     private final S3Client s3;
@@ -82,12 +82,17 @@ public class ArtifactStore {
     /** One artifact named by a verified index: object key and its registered SHA-256. */
     public record IndexedFile(String key, String sha256) {}
 
-    /**
-     * Finds the single report.json entry of an already hash-verified artifact index.
-     * The index hash comes from PostgreSQL; the prefix check is defense in depth so an
-     * entry can never name an object outside the index's own attempt directory.
-     */
+    /** The single report.json entry of a verified index; see {@link #entry}. */
     public static IndexedFile reportEntry(byte[] index, String manifestKey) {
+        return entry(index, manifestKey, REPORT_PATH);
+    }
+
+    /**
+     * Finds the single entry for a top-level artifact path in an already hash-verified
+     * artifact index. The index hash comes from PostgreSQL; the exact-key check is
+     * defense in depth so an entry can never name an object outside its own attempt.
+     */
+    public static IndexedFile entry(byte[] index, String manifestKey, String artifactPath) {
         if (manifestKey == null || !manifestKey.endsWith("/" + INDEX_NAME)) {
             throw invalidIndex(null);
         }
@@ -109,7 +114,7 @@ public class ArtifactStore {
             if (path == null || !path.isTextual()) {
                 throw invalidIndex(null);
             }
-            if (REPORT_PATH.equals(path.textValue())) {
+            if (artifactPath.equals(path.textValue())) {
                 if (report != null) {
                     throw invalidIndex(null);
                 }
@@ -122,8 +127,8 @@ public class ArtifactStore {
         JsonNode key = report.get("key");
         JsonNode sha256 = report.get("sha256");
         JsonNode bytes = report.get("bytes");
-        // The worker writes exactly <attempt prefix>/report.json; accept nothing else.
-        if (key == null || !key.isTextual() || !key.textValue().equals(prefix + "report.json")
+        // The worker writes exactly <attempt prefix>/<path>; accept nothing else.
+        if (key == null || !key.isTextual() || !key.textValue().equals(prefix + artifactPath)
                 || sha256 == null || !sha256.isTextual() || !SHA256.matcher(sha256.textValue()).matches()
                 || bytes == null || !bytes.isIntegralNumber()
                 || bytes.bigIntegerValue().signum() < 0
