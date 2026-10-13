@@ -1,6 +1,7 @@
 package dev.portfoliolab.api.web;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.hamcrest.Matchers.containsString;
@@ -13,6 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,7 +24,9 @@ import dev.portfoliolab.api.jobs.ArtifactStore;
 import dev.portfoliolab.api.jobs.ArtifactStore.ArtifactUnavailable;
 import dev.portfoliolab.api.jobs.RunRepository;
 import dev.portfoliolab.api.jobs.RunRepository.IdempotencyConflict;
+import dev.portfoliolab.api.jobs.RunRepository.Page;
 import dev.portfoliolab.api.jobs.RunRepository.Snapshot;
+import dev.portfoliolab.api.jobs.RunRepository.Summary;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -215,6 +220,79 @@ class RunControllerTest {
                 .andExpect(content().string(not(containsString("secret-key"))));
     }
 
+    @Test
+    void listRequiresBearer() throws Exception {
+        mvc().perform(get("/api/v1/runs")).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("unauthorized"));
+        assertEquals(0, repository.lists);
+    }
+
+    @Test
+    void listDefaultsToTwentyWithoutCursor() throws Exception {
+        mvc().perform(get("/api/v1/runs").header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty())
+                .andExpect(jsonPath("$.nextCursor").isEmpty());
+        assertEquals(1, repository.lists);
+        assertEquals(20, repository.lastLimit);
+        assertNull(repository.lastCursor);
+    }
+
+    @Test
+    void listRejectsInvalidLimitOrCursorBeforeRepository() throws Exception {
+        String[][] params = {{"limit", "0"}, {"limit", "51"}, {"limit", "abc"}, {"limit", "-1"},
+                {"limit", ""}, {"cursor", "not-a-uuid"}, {"cursor", "1-1-1-1-1"}};
+        for (String[] param : params) {
+            mvc().perform(get("/api/v1/runs").param(param[0], param[1])
+                    .header("Authorization", "Bearer unit-test-secret-123"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("invalid_request"));
+        }
+        assertEquals(0, repository.lists);
+    }
+
+    @Test
+    void listUnknownCursorIsInvalidRequest() throws Exception {
+        UUID cursor = UUID.randomUUID();
+        repository.listFailure = new IllegalArgumentException("Unknown page cursor");
+        mvc().perform(get("/api/v1/runs").param("cursor", cursor.toString())
+                .header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("invalid_request"));
+        assertEquals(1, repository.lists);
+        assertEquals(cursor, repository.lastCursor);
+    }
+
+    @Test
+    void listSerializesSummariesAndNextCursorWithoutManifestKey() throws Exception {
+        UUID newest = UUID.randomUUID();
+        UUID older = UUID.randomUUID();
+        UUID cursor = UUID.randomUUID();
+        repository.page = new Page(List.of(
+                new Summary(newest, "COMPLETE", 1, "runs/secret-key", null,
+                        Instant.parse("2026-10-13T08:15:30.123456Z")),
+                new Summary(older, "FAILED", 3, null, "attempts_exhausted",
+                        Instant.parse("2026-10-12T07:00:00Z"))), older);
+        mvc().perform(get("/api/v1/runs").param("limit", "2").param("cursor", cursor.toString())
+                .header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[0].runId").value(newest.toString()))
+                .andExpect(jsonPath("$.items[0].state").value("COMPLETE"))
+                .andExpect(jsonPath("$.items[0].attemptCount").value(1))
+                .andExpect(jsonPath("$.items[0].manifestAvailable").value(true))
+                .andExpect(jsonPath("$.items[0].createdAt").value("2026-10-13T08:15:30.123456Z"))
+                .andExpect(jsonPath("$.items[0].manifestKey").doesNotExist())
+                .andExpect(jsonPath("$.items[1].runId").value(older.toString()))
+                .andExpect(jsonPath("$.items[1].manifestAvailable").value(false))
+                .andExpect(jsonPath("$.items[1].errorCode").value("attempts_exhausted"))
+                .andExpect(jsonPath("$.items[1].createdAt").value("2026-10-12T07:00:00Z"))
+                .andExpect(jsonPath("$.nextCursor").value(older.toString()))
+                .andExpect(content().string(not(containsString("secret-key"))));
+        assertEquals(2, repository.lastLimit);
+        assertEquals(cursor, repository.lastCursor);
+    }
+
     private static final class FakeArtifacts extends ArtifactStore {
         private int reads;
         private byte[] content;
@@ -244,6 +322,11 @@ class RunControllerTest {
         private UUID nextId;
         private boolean conflict;
         private Snapshot snapshot;
+        private int lists;
+        private UUID lastCursor;
+        private int lastLimit;
+        private Page page = new Page(List.of(), null);
+        private IllegalArgumentException listFailure;
 
         private FakeRepository() {
             super(null);
@@ -270,6 +353,18 @@ class RunControllerTest {
         public Optional<Snapshot> cancel(String operator, UUID id) {
             cancels++;
             return find(operator, id);
+        }
+
+        @Override
+        public Page list(String operator, UUID cursor, int limit) {
+            lists++;
+            assertEquals("local", operator);
+            lastCursor = cursor;
+            lastLimit = limit;
+            if (listFailure != null) {
+                throw listFailure;
+            }
+            return page;
         }
     }
 }

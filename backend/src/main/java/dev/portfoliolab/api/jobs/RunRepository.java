@@ -1,5 +1,6 @@
 package dev.portfoliolab.api.jobs;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -7,12 +8,18 @@ import java.util.UUID;
 
 import dev.portfoliolab.api.contract.SyntheticRequestContract.Accepted;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 /** PostgreSQL-backed submission and read transitions. Worker ownership follows separately. */
 @Repository
 public class RunRepository {
+    public static final int MAX_PAGE_SIZE = 50;
+    private static final RowMapper<Summary> SUMMARY = (rs, rowNum) -> new Summary(
+            rs.getObject("id", UUID.class), rs.getString("state"), rs.getInt("attempt_count"),
+            rs.getString("manifest_key"), rs.getString("error_code"),
+            rs.getTimestamp("created_at").toInstant());
     private final JdbcTemplate jdbc;
 
     public RunRepository(JdbcTemplate jdbc) {
@@ -22,6 +29,10 @@ public class RunRepository {
     public record Submission(UUID runId, boolean created) {}
     public record Snapshot(UUID id, String state, int attemptCount, String manifestKey,
                            String manifestSha256, String errorCode) {}
+    public record Summary(UUID id, String state, int attemptCount, String manifestKey,
+                          String errorCode, Instant createdAt) {}
+    /** One newest-first page; nextCursor is the last item's ID when more rows exist. */
+    public record Page(List<Summary> items, UUID nextCursor) {}
 
     public static final class IdempotencyConflict extends RuntimeException {
         public IdempotencyConflict() {
@@ -77,6 +88,43 @@ public class RunRepository {
                 rs.getString("manifest_key"), rs.getString("manifest_sha256"),
                 rs.getString("error_code")), id, operator);
         return rows.stream().findFirst();
+    }
+
+    @Transactional(readOnly = true)
+    public Page list(String operator, UUID cursor, int limit) {
+        validateOperator(operator);
+        if (limit < 1 || limit > MAX_PAGE_SIZE) {
+            throw new IllegalArgumentException("Invalid page size");
+        }
+        List<Summary> rows;
+        if (cursor == null) {
+            rows = jdbc.query("""
+                    SELECT id, state, attempt_count, manifest_key, error_code, created_at
+                    FROM experiment_run WHERE operator_id = ?
+                    ORDER BY created_at DESC, id DESC LIMIT ?
+                    """, SUMMARY, operator, limit + 1);
+        } else {
+            // Resolve the cursor first so an unknown or foreign run ID is a client
+            // error rather than an indistinguishable empty page.
+            Integer known = jdbc.queryForObject("""
+                    SELECT COUNT(*) FROM experiment_run WHERE id = ? AND operator_id = ?
+                    """, Integer.class, cursor, operator);
+            if (known == null || known == 0) {
+                throw new IllegalArgumentException("Unknown page cursor");
+            }
+            rows = jdbc.query("""
+                    SELECT id, state, attempt_count, manifest_key, error_code, created_at
+                    FROM experiment_run
+                    WHERE operator_id = ? AND (created_at, id) <
+                        (SELECT created_at, id FROM experiment_run WHERE id = ? AND operator_id = ?)
+                    ORDER BY created_at DESC, id DESC LIMIT ?
+                    """, SUMMARY, operator, cursor, operator, limit + 1);
+        }
+        if (rows.size() <= limit) {
+            return new Page(List.copyOf(rows), null);
+        }
+        List<Summary> items = List.copyOf(rows.subList(0, limit));
+        return new Page(items, items.getLast().id());
     }
 
     @Transactional

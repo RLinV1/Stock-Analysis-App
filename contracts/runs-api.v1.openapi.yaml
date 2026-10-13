@@ -16,6 +16,32 @@ security:
   - operatorBearer: []
 paths:
   /api/v1/runs:
+    get:
+      summary: List runs, newest first
+      description: >
+        Keyset-paginated list of the local operator's runs ordered by createdAt
+        descending, then runId descending. Pass the previous page's nextCursor
+        as `cursor` to continue. A cursor that is not one of this operator's
+        runs is rejected with `invalid_request` rather than returning an empty
+        page. Manifest object keys and hashes are never included.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 50, default: 20}
+        - name: cursor
+          in: query
+          required: false
+          description: runId of the last item of the previous page.
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: One page of run summaries.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RunPage'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
     post:
       summary: Submit a synthetic run
       description: >
@@ -150,7 +176,7 @@ components:
         pattern: '^[A-Za-z0-9._:-]{1,128}$'
   responses:
     InvalidRequest:
-      description: Invalid body, header or path value (`invalid_request`).
+      description: Invalid body, header, path or query value (`invalid_request`).
       content:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
@@ -188,6 +214,42 @@ components:
           description: >
             Sanitized failure code, for example worker_failure,
             attempts_exhausted or invalid_request; null when none.
+    RunSummary:
+      type: object
+      additionalProperties: false
+      # Same errorCode null handling as RunStatus.
+      required: [runId, state, attemptCount, manifestAvailable, createdAt]
+      properties:
+        runId: {type: string, format: uuid}
+        state:
+          type: string
+          enum: [QUEUED, RUNNING, CANCEL_REQUESTED, CANCELLED, COMPLETE, FAILED]
+        attemptCount: {type: integer, minimum: 0, maximum: 3}
+        manifestAvailable:
+          type: boolean
+          description: True only when state is COMPLETE and a manifest is registered.
+        errorCode:
+          type: [string, 'null']
+          description: Sanitized failure code; null when none.
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO-8601 UTC instant, for example 2026-10-13T08:15:30.123456Z.
+    RunPage:
+      type: object
+      additionalProperties: false
+      # The server emits nextCursor as explicit null on the last page; clients
+      # also treat an omitted nextCursor as the last page.
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: {$ref: '#/components/schemas/RunSummary'}
+        nextCursor:
+          type: [string, 'null']
+          format: uuid
+          description: runId of the last item when more runs exist; null otherwise.
     Problem:
       type: object
       required: [type, title, status, code]
