@@ -14,7 +14,7 @@
 ## 3. Follow-up, not performed here
 
 - [ ] 3.1 Decide the relocation question; OneDrive sync remains active on this tree (design.md records three options)
-- [ ] 3.2 Install pre-commit secret scanning before any public publication (`docs/SECURITY.md` requirement, unmet)
+- [ ] 3.2 Install pre-commit secret scanning before any public publication (`docs/SECURITY.md` requirement, unmet). 2026-10-13: a stdlib scanner `scripts/check_secrets.py` is being written (not run, hook not installed); a dedicated tool such as gitleaks is still needed before going public
 - [x] 3.3 Update `docs/REPRODUCTION.md` so source identity cites a commit alongside the content fingerprint
 - [x] 3.4 Reconcile `reproduce-portfolio-learning` task status against actual source and test evidence (its own task 4.3)
 
