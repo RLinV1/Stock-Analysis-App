@@ -140,6 +140,46 @@ paths:
           content:
             application/problem+json:
               schema: {$ref: '#/components/schemas/Problem'}
+  /api/v1/runs/{runId}/report:
+    get:
+      summary: Read the completed run report
+      description: >
+        Reads and verifies the run's artifact index exactly as the manifest
+        route does, then requires exactly one `report.json` entry whose key lies
+        inside the index's own attempt directory, whose sha256 is 64 lowercase
+        hex characters and whose bytes are at most 1 MiB. The report object is
+        then read and verified against that hash and returned unchanged.
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: >
+            Verified report.json bytes. The A0 report shape is produced by
+            research/src/portfolio_lab/runner.py and has no published schema yet;
+            clients treat it as an opaque JSON object.
+          headers:
+            Cache-Control:
+              schema: {type: string, const: 'private, max-age=31536000, immutable'}
+          content:
+            application/json:
+              schema: {type: object}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409':
+          description: The run has no completed result (`run_not_complete`).
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '502':
+          description: >
+            The index or report could not be read (`artifact_unavailable`),
+            exceeded 1 MiB (`artifact_too_large`) or failed its hash
+            (`artifact_integrity_failure`), or the verified index did not name
+            exactly one valid report entry (`artifact_index_invalid`).
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
   /actuator/health:
     get:
       summary: Minimal service health
@@ -267,3 +307,4 @@ components:
             - artifact_unavailable
             - artifact_too_large
             - artifact_integrity_failure
+            - artifact_index_invalid

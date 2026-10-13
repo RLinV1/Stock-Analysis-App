@@ -15,7 +15,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -220,6 +223,100 @@ class RunControllerTest {
                 .andExpect(content().string(not(containsString("secret-key"))));
     }
 
+    private static String attemptPrefix(UUID id) {
+        return "runs/" + id + "/attempts/secret-attempt/";
+    }
+
+    private static byte[] indexWithReport(String reportKey, String reportSha256) {
+        return ("{\"attempt_id\":\"secret-attempt\",\"files\":[{\"bytes\":24,\"key\":\"" + reportKey
+                + "\",\"path\":\"report.json\",\"sha256\":\"" + reportSha256
+                + "\"}],\"kind\":\"synthetic-a0\",\"run_id\":\"r\"}").getBytes(StandardCharsets.UTF_8);
+    }
+
+    @Test
+    void reportRequiresBearer() throws Exception {
+        mvc().perform(get("/api/v1/runs/" + UUID.randomUUID() + "/report"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("unauthorized"));
+        assertEquals(0, artifacts.reads);
+    }
+
+    @Test
+    void reportOfUnknownRunIsNotFound() throws Exception {
+        mvc().perform(get("/api/v1/runs/" + UUID.randomUUID() + "/report")
+                .header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isNotFound());
+        assertEquals(0, artifacts.reads);
+    }
+
+    @Test
+    void reportOfIncompleteRunIsConflictWithoutStorageRead() throws Exception {
+        UUID id = UUID.randomUUID();
+        repository.snapshot = new Snapshot(id, "RUNNING", 1, null, null, null);
+        mvc().perform(get("/api/v1/runs/" + id + "/report")
+                .header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("run_not_complete"));
+        repository.snapshot = new Snapshot(id, "COMPLETE", 1, null, null, null);
+        mvc().perform(get("/api/v1/runs/" + id + "/report")
+                .header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("run_not_complete"));
+        assertEquals(0, artifacts.reads);
+    }
+
+    @Test
+    void reportReturnsVerifiedReportBytesNamedByVerifiedIndex() throws Exception {
+        UUID id = UUID.randomUUID();
+        String manifestKey = attemptPrefix(id) + "artifact-index.json";
+        String reportKey = attemptPrefix(id) + "report.json";
+        String indexDigest = "b".repeat(64);
+        String reportDigest = "e".repeat(64);
+        repository.snapshot = new Snapshot(id, "COMPLETE", 1, manifestKey, indexDigest, null);
+        artifacts.objects.put(manifestKey, indexWithReport(reportKey, reportDigest));
+        artifacts.objects.put(reportKey, "{\"method_label\":\"smoke\"}".getBytes(StandardCharsets.UTF_8));
+        mvc().perform(get("/api/v1/runs/" + id + "/report")
+                .header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "application/json"))
+                .andExpect(header().string("Cache-Control", "private, max-age=31536000, immutable"))
+                .andExpect(content().string("{\"method_label\":\"smoke\"}"));
+        assertEquals(List.of(manifestKey, reportKey), artifacts.keys);
+        assertEquals(reportDigest, artifacts.lastSha256);
+    }
+
+    @Test
+    void reportIntegrityFailureIsBadGatewayWithoutLeakingKeys() throws Exception {
+        UUID id = UUID.randomUUID();
+        String manifestKey = attemptPrefix(id) + "artifact-index.json";
+        String reportKey = attemptPrefix(id) + "report.json";
+        repository.snapshot = new Snapshot(id, "COMPLETE", 1, manifestKey, "b".repeat(64), null);
+        artifacts.objects.put(manifestKey, indexWithReport(reportKey, "e".repeat(64)));
+        artifacts.failure = new ArtifactUnavailable("artifact_integrity_failure", null);
+        artifacts.failingKey = reportKey;
+        mvc().perform(get("/api/v1/runs/" + id + "/report")
+                .header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.code").value("artifact_integrity_failure"))
+                .andExpect(content().string(not(containsString("secret-attempt"))))
+                .andExpect(content().string(not(containsString("report.json"))));
+        assertEquals(2, artifacts.reads);
+    }
+
+    @Test
+    void reportWithInvalidIndexIsBadGatewayWithoutReadingReport() throws Exception {
+        UUID id = UUID.randomUUID();
+        String manifestKey = attemptPrefix(id) + "artifact-index.json";
+        repository.snapshot = new Snapshot(id, "COMPLETE", 1, manifestKey, "b".repeat(64), null);
+        artifacts.objects.put(manifestKey, indexWithReport("runs/other/secret-attempt/report.json", "e".repeat(64)));
+        mvc().perform(get("/api/v1/runs/" + id + "/report")
+                .header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.code").value("artifact_index_invalid"))
+                .andExpect(content().string(not(containsString("secret-attempt"))));
+        assertEquals(List.of(manifestKey), artifacts.keys);
+    }
+
     @Test
     void listRequiresBearer() throws Exception {
         mvc().perform(get("/api/v1/runs")).andExpect(status().isUnauthorized())
@@ -296,9 +393,12 @@ class RunControllerTest {
     private static final class FakeArtifacts extends ArtifactStore {
         private int reads;
         private byte[] content;
+        private final Map<String, byte[]> objects = new HashMap<>();
         private ArtifactUnavailable failure;
+        private String failingKey;
         private String lastKey;
         private String lastSha256;
+        private final List<String> keys = new ArrayList<>();
 
         private FakeArtifacts() {
             super(null, "unused");
@@ -309,10 +409,11 @@ class RunControllerTest {
             reads++;
             lastKey = key;
             lastSha256 = expectedSha256;
-            if (failure != null) {
+            keys.add(key);
+            if (failure != null && (failingKey == null || failingKey.equals(key))) {
                 throw failure;
             }
-            return content;
+            return objects.getOrDefault(key, content);
         }
     }
 

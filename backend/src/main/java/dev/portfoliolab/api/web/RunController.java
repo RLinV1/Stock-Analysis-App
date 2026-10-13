@@ -86,17 +86,37 @@ public final class RunController {
 
     @GetMapping(path = "/{id}/manifest", produces = "application/json")
     public ResponseEntity<byte[]> manifest(@PathVariable UUID id) {
-        Snapshot snapshot = runs.find(LOCAL_OPERATOR, id).orElse(null);
+        Snapshot snapshot = completed(id);
         if (snapshot == null) {
             return ResponseEntity.notFound().build();
         }
-        if (!"COMPLETE".equals(snapshot.state()) || snapshot.manifestKey() == null) {
+        return immutableJson(artifacts.readVerified(snapshot.manifestKey(), snapshot.manifestSha256()));
+    }
+
+    @GetMapping(path = "/{id}/report", produces = "application/json")
+    public ResponseEntity<byte[]> report(@PathVariable UUID id) {
+        Snapshot snapshot = completed(id);
+        if (snapshot == null) {
+            return ResponseEntity.notFound().build();
+        }
+        byte[] index = artifacts.readVerified(snapshot.manifestKey(), snapshot.manifestSha256());
+        ArtifactStore.IndexedFile report = ArtifactStore.reportEntry(index, snapshot.manifestKey());
+        return immutableJson(artifacts.readVerified(report.key(), report.sha256()));
+    }
+
+    /** Null for an unknown run; throws before any storage read when no result is registered. */
+    private Snapshot completed(UUID id) {
+        Snapshot snapshot = runs.find(LOCAL_OPERATOR, id).orElse(null);
+        if (snapshot != null && (!"COMPLETE".equals(snapshot.state()) || snapshot.manifestKey() == null)) {
             throw new RunNotComplete();
         }
-        byte[] manifest = artifacts.readVerified(snapshot.manifestKey(), snapshot.manifestSha256());
+        return snapshot;
+    }
+
+    private static ResponseEntity<byte[]> immutableJson(byte[] content) {
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
                 .header("Cache-Control", "private, max-age=31536000, immutable")
-                .body(manifest);
+                .body(content);
     }
 
     @PostMapping(path = "/{id}/cancel", produces = "application/json")
