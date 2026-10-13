@@ -44,17 +44,27 @@ class JobStore:
     def claim(self) -> Claimed | None:
         with self._connect() as conn, conn.transaction():
             with conn.cursor() as cur:
+                # Sweeps end abandoned runs and close their last attempt in the same
+                # statement, so no attempt stays open after its run is terminal.
                 cur.execute("""
-                    UPDATE experiment_run SET state='CANCELLED', current_token=NULL,
-                        lease_expires_at=NULL, updated_at=CURRENT_TIMESTAMP
-                    WHERE state='CANCEL_REQUESTED' AND lease_expires_at < CURRENT_TIMESTAMP
+                    WITH swept AS (
+                        UPDATE experiment_run SET state='CANCELLED', current_token=NULL,
+                            lease_expires_at=NULL, updated_at=CURRENT_TIMESTAMP
+                        WHERE state='CANCEL_REQUESTED' AND lease_expires_at < CURRENT_TIMESTAMP
+                        RETURNING id)
+                    UPDATE run_attempt SET finished_at=CURRENT_TIMESTAMP, failure_code='cancelled'
+                    WHERE finished_at IS NULL AND run_id IN (SELECT id FROM swept)
                 """)
                 cur.execute("""
-                    UPDATE experiment_run SET state='FAILED', current_token=NULL,
-                        lease_expires_at=NULL, error_code='attempts_exhausted',
-                        updated_at=CURRENT_TIMESTAMP
-                    WHERE state='RUNNING' AND lease_expires_at < CURRENT_TIMESTAMP
-                      AND attempt_count >= %s
+                    WITH swept AS (
+                        UPDATE experiment_run SET state='FAILED', current_token=NULL,
+                            lease_expires_at=NULL, error_code='attempts_exhausted',
+                            updated_at=CURRENT_TIMESTAMP
+                        WHERE state='RUNNING' AND lease_expires_at < CURRENT_TIMESTAMP
+                          AND attempt_count >= %s
+                        RETURNING id)
+                    UPDATE run_attempt SET finished_at=CURRENT_TIMESTAMP, failure_code='lease_expired'
+                    WHERE finished_at IS NULL AND run_id IN (SELECT id FROM swept)
                 """, (MAX_ATTEMPTS,))
                 cur.execute("""
                     SELECT id, request_json, attempt_count FROM experiment_run
