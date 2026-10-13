@@ -1,6 +1,6 @@
 # Project handoff
 
-Updated 2026-10-12.
+Updated 2026-10-13.
 
 ## Latest direction
 - User requested continued implementation after Claude's Git work, thorough preparation/testing, the supplied apple-design UI skill, then continuation on GPT-6-Sol. Planning/research checks are complete. The app accepted a continuation message to this task with model gpt-6-sol on 2026-10-09; this records the accepted request, not an independent runtime-model inspection.
@@ -18,7 +18,7 @@ Updated 2026-10-12.
 - No API, Compose, durable worker, K3s, ONNX or historical research verification. The Expo shell has seven passing component tests and Android/web exports, but no physical-device check. No services, remotes, commits or network access configuration.
 
 ## Active changes
-- [build-synthetic-service-slice](changes/build-synthetic-service-slice/tasks.md): task 1 complete. Spring contract/HTTP source, bearer filter, Liquibase migration and JDBC repository added; 14 Java tests pass (including offline changelog parse). 2026-10-12 security review fixed a bearer-filter bypass via `;` path parameters (now fail-closed, only exact `/actuator/health` public) and a worker queue-starvation defect on invalid stored requests; worker tests 8/8 (including `run_one` lifecycle paths). Python claim/lease/S3 worker source and 3 fake-S3 tests added; pinned psycopg/boto3 imports, pip check and combined 77-test research/worker suite pass. Compose/Dockerfiles added; config parses with throwaway values, images/startup unrun. Docker engine pipe still absent on 2026-10-12 recheck; LocalStack token unconfigured. Tasks 2–5 remain open.
+- [build-synthetic-service-slice](changes/build-synthetic-service-slice/tasks.md): task 1 complete. Spring contract/HTTP source, bearer filter, Liquibase migration and JDBC repository and hash-verified manifest route (AWS SDK 2.55.0) added; 24 Java tests pass (including offline changelog parse). 2026-10-12 security review fixed a bearer-filter bypass via `;` path parameters (now fail-closed, only exact `/actuator/health` public) and a worker queue-starvation defect on invalid stored requests; worker tests 8/8 (including `run_one` lifecycle paths). Python claim/lease/S3 worker source and 3 fake-S3 tests added; pinned psycopg/boto3 imports, pip check and combined 77-test research/worker suite pass. Compose/Dockerfiles added; config parses with throwaway values, images/startup unrun. Docker engine pipe still absent on 2026-10-12 recheck; LocalStack token unconfigured. Tasks 2–5 remain open.
 - [reproduce-portfolio-learning](changes/reproduce-portfolio-learning/tasks.md): 17/18 tasks complete: tested runner, repeat, evidence and final validation. Historical seed/cost task 4.2 remains open. Do not archive as fully complete.
 - [initialize-version-control](changes/initialize-version-control/tasks.md): Claude's Git/LF setup plus verified source-revision continuation. OneDrive relocation choice and publication secret-scanning follow-ups remain open.
 - [define-product-and-stack](changes/define-product-and-stack/tasks.md): section 10 UI skill/acceptance plan complete and validated. Broader research/default tasks remain open.

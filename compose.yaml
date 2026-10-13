@@ -75,6 +75,11 @@ services:
       DATABASE_USER: portfolio_lab
       DATABASE_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}"
       PORTFOLIO_OPERATOR_TOKEN: "${PORTFOLIO_OPERATOR_TOKEN:?set PORTFOLIO_OPERATOR_TOKEN in .env}"
+      S3_ENDPOINT_URL: http://localstack:4566
+      ARTIFACT_BUCKET: portfolio-lab-artifacts
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-1
     depends_on:
       migrate:
         condition: service_completed_successfully

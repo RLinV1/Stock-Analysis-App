@@ -25,6 +25,10 @@ The API SHALL expose run status and idempotent cancellation. A queued run SHALL 
 - **WHEN** cancellation commits before a worker's completion update
 - **THEN** the worker's stale or cancelled attempt cannot publish completion
 
+#### Scenario: Read a completed manifest
+- **WHEN** an authenticated operator requests the manifest of a COMPLETE run
+- **THEN** the API returns the registered object only if its bytes match the registered SHA-256, and otherwise returns a stable error code without internal storage details
+
 ### Requirement: Run standalone under Compose
 After documented private prerequisites, Compose SHALL start the API, worker, PostgreSQL, Liquibase migration, LocalStack and bucket initializer without Kubernetes or manual bucket/schema creation.
 
