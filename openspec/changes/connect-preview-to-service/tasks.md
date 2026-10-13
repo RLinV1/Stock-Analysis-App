@@ -10,8 +10,8 @@
 
 ## Report viewer and UI continuation — 2026-10-13
 
-- [ ] Write a typed report client/parser and manifest identity guard, with contract regression tests.
-- [ ] Write a Results view with measured strategy metrics, evaluation context, undefined reasons, loading/error/retry and stale-response protection.
+- [x] Write a typed report client/parser and manifest identity guard, with contract regression tests.
+- [x] Write a Results view with measured strategy metrics, evaluation context, undefined reasons, loading/error/retry and stale-response protection.
 - [ ] Refine Apple-inspired typography, grouped surfaces and control spacing while preserving text scaling, press feedback, Android Back and synthetic labels.
-- [ ] Write component coverage for report success, undefined metrics, loading/failure/retry and stale responses.
+- [x] Write component coverage for report success, undefined metrics, loading/failure/retry and stale responses.
 - [ ] Run client tests, TypeScript, lint, and rendered light/dark/large-text review when execution is permitted; validate OpenSpec before archive.

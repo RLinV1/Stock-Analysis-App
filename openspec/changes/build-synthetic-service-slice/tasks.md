@@ -14,5 +14,5 @@
 
 ## Attempt lifecycle correction — 2026-10-13 continuation
 
-- [ ] Close an expired open attempt when claim rejects its invalid stored request; write a PostgreSQL regression test.
+- [x] Close an expired open attempt when claim rejects its invalid stored request; write a PostgreSQL regression test (not executed).
 - [ ] Execute the regression against PostgreSQL when allowed; reconcile implementation evidence and validate OpenSpec.
