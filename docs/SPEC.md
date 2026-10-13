@@ -93,7 +93,7 @@ A1 must define Sortino/downside denominator, return threshold and zero-loss hand
 
 ## 5. Canonical API and database contract
 
-Routes remain planned as a full service contract. Source-level Spring POST/GET/cancel/manifest handlers, a fail-closed local bearer filter (only the exact health path is public) and 24 passing contract/changelog/artifact-store/MVC tests now exist, but no PostgreSQL migration, live HTTP round trip or worker result retrieval has passed. JSON errors use application/problem+json with stable codes and no internal paths. Authentication is required for compute-triggering routes before network access. Paginate run lists; enforce bounded request sizes and numeric budgets.
+Routes remain planned as a full service contract. Source-level Spring POST/GET/cancel/manifest handlers (tested with MockMvc) and a paginated run list (written 2026-10-13, not yet compiled), documented in contracts/runs-api.v1.openapi.yaml, a fail-closed local bearer filter (only the exact health path is public) and 24 passing contract/changelog/artifact-store/MVC tests now exist, but no PostgreSQL migration, live HTTP round trip or worker result retrieval has passed. JSON errors use application/problem+json with stable codes and no internal paths. Authentication is required for compute-triggering routes before network access. Paginate run lists; enforce bounded request sizes and numeric budgets.
 
 | Route | Behavior |
 |---|---|
