@@ -112,6 +112,10 @@ services:
         condition: service_completed_successfully
       s3-init:
         condition: service_completed_successfully
+    # SIGTERM stops new claims; a run already training finishes and publishes
+    # within this window (bounded synthetic runs measured in seconds on CPU).
+    stop_grace_period: 2m
+    init: true
     restart: unless-stopped
 
 volumes:

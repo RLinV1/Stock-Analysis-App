@@ -237,3 +237,97 @@ def test_artifact_index_bytes_are_canonical(tmp_path):
     canonical = json.dumps(json.loads(content), sort_keys=True,
                            separators=(",", ":")).encode()
     assert content == canonical
+
+
+class ReleasingStore(RecordingStore):
+    def release_owned(self, job):
+        self.calls.append("release_owned")
+        return True
+
+
+def test_run_one_releases_without_training_when_stop_already_requested(monkeypatch):
+    def must_not_run(request, root):
+        raise AssertionError("training started after stop was requested")
+
+    monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", must_not_run)
+    store, s3, stop = ReleasingStore(), FakeS3(), portfolio_worker.threading.Event()
+    stop.set()
+    run_one(store, s3, "lab-artifacts", job(), stop=stop)
+    assert store.calls == ["release_owned"]
+    assert s3.objects == {}
+
+
+def test_run_one_still_publishes_when_stop_arrives_during_training(monkeypatch):
+    # Finished training is cheaper to publish than to rerun after a release.
+    stop = portfolio_worker.threading.Event()
+
+    def execute_then_stop(request, root):
+        run_dir = fake_execute(request, root)
+        stop.set()
+        return run_dir
+
+    monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", execute_then_stop)
+    store, s3 = ReleasingStore(), FakeS3()
+    run_one(store, s3, "lab-artifacts", job(), stop=stop)
+    assert store.calls == ["publish"]
+    assert any(key.endswith("artifact-index.json") for _, key in s3.objects)
+
+
+def test_run_one_with_unset_stop_publishes_as_before(monkeypatch):
+    monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", fake_execute)
+    store, s3 = ReleasingStore(), FakeS3()
+    run_one(store, s3, "lab-artifacts", job(), stop=portfolio_worker.threading.Event())
+    assert store.calls == ["publish"]
+    assert any(key.endswith("artifact-index.json") for _, key in s3.objects)
+
+
+class RowcountCursor(FakeCursor):
+    """FakeCursor whose UPDATEs report the queued rowcounts in order."""
+
+    def __init__(self, rowcounts):
+        super().__init__(None)
+        self.rowcounts = list(rowcounts)
+        self.rowcount = -1
+
+    def execute(self, sql, params=None):
+        super().execute(sql, params)
+        self.rowcount = self.rowcounts.pop(0)
+
+
+def test_release_owned_requeues_running_attempt_as_worker_shutdown(monkeypatch):
+    cursor = RowcountCursor([1, 1])
+    store = JobStore("dbname=unused", "worker-test")
+    monkeypatch.setattr(store, "_connect", lambda: FakeConnection(cursor))
+    claimed = job()
+    assert store.release_owned(claimed) is True
+    (run_sql, run_params), (attempt_sql, attempt_params) = cursor.statements
+    assert run_sql.startswith("UPDATE experiment_run")
+    assert "WHERE id=%s AND current_token=%s AND state='RUNNING'" in run_sql
+    assert "ELSE 'QUEUED' END" in run_sql and "current_token=NULL" in run_sql
+    assert run_params == (portfolio_worker.MAX_ATTEMPTS, portfolio_worker.MAX_ATTEMPTS,
+                          claimed.run_id, claimed.token)
+    assert "attempt_count=" not in run_sql
+    assert attempt_sql.startswith("UPDATE run_attempt SET finished_at=CURRENT_TIMESTAMP")
+    assert "WHERE id=%s AND fencing_token=%s" in attempt_sql
+    assert attempt_params == ("worker_shutdown", claimed.attempt_id, claimed.token)
+
+
+def test_release_owned_finishes_requested_cancel_as_cancelled(monkeypatch):
+    cursor = RowcountCursor([0, 1, 1])
+    store = JobStore("dbname=unused", "worker-test")
+    monkeypatch.setattr(store, "_connect", lambda: FakeConnection(cursor))
+    claimed = job()
+    assert store.release_owned(claimed) is True
+    cancel_sql, cancel_params = cursor.statements[1]
+    assert "state='CANCELLED'" in cancel_sql
+    assert "WHERE id=%s AND current_token=%s AND state='CANCEL_REQUESTED'" in cancel_sql
+    assert cancel_params == (claimed.run_id, claimed.token)
+    assert cursor.statements[2][1] == ("cancelled", claimed.attempt_id, claimed.token)
+
+
+def test_release_owned_leaves_unowned_run_untouched(monkeypatch):
+    cursor = RowcountCursor([0, 0])
+    store = JobStore("dbname=unused", "worker-test")
+    monkeypatch.setattr(store, "_connect", lambda: FakeConnection(cursor))
+    assert store.release_owned(job()) is False
+    assert not any("run_attempt" in sql for sql, _ in cursor.statements)

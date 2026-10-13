@@ -29,6 +29,20 @@ The API SHALL expose run status and idempotent cancellation. A queued run SHALL 
 - **WHEN** an authenticated operator requests the manifest of a COMPLETE run
 - **THEN** the API returns the registered object only if its bytes match the registered SHA-256, and otherwise returns a stable error code without internal storage details
 
+### Requirement: List runs newest first
+The API SHALL list only the authenticated operator's runs, newest first, in pages of 1–50 items using an opaque-to-clients cursor, and SHALL reject an invalid limit or a cursor that does not name one of the operator's runs.
+
+#### Scenario: Page through runs
+- **WHEN** an operator with more runs than the page limit requests the next page with the returned cursor
+- **THEN** the API returns the following older runs without repeating or skipping any
+
+### Requirement: Stop the worker gracefully
+On SIGTERM the worker SHALL stop claiming new work. A run it owns but has not started training SHALL return to the queue, or become FAILED when its attempts are exhausted, or CANCELLED when cancellation was requested. A run whose training already finished SHALL continue to conditional publication.
+
+#### Scenario: Stop between claim and training
+- **WHEN** the worker receives SIGTERM after claiming a run and before training starts
+- **THEN** no artifact is published and the run becomes claimable again without waiting for lease expiry
+
 ### Requirement: Run standalone under Compose
 After documented private prerequisites, Compose SHALL start the API, worker, PostgreSQL, Liquibase migration, LocalStack and bucket initializer without Kubernetes or manual bucket/schema creation.
 

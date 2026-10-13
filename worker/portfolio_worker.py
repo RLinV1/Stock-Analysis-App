@@ -5,10 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import signal
 import socket
 import tempfile
 import threading
-import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,6 +20,8 @@ from portfolio_lab.service_contract import execute_synthetic_request, validate_r
 LEASE_SECONDS = 60
 HEARTBEAT_SECONDS = 10
 MAX_ATTEMPTS = 3
+# Set by the SIGTERM/SIGINT handler installed in main().
+STOP = threading.Event()
 
 
 @dataclass(frozen=True)
@@ -169,6 +171,39 @@ class JobStore:
                         WHERE id=%s AND fencing_token=%s
                     """, (job.attempt_id, job.token))
 
+    def release_owned(self, job: Claimed) -> bool:
+        """Return an owned run to the queue on worker shutdown.
+
+        The claimed attempt stays counted. On the last allowed attempt the run
+        fails instead, because attempt_count may never exceed MAX_ATTEMPTS.
+        """
+        with self._connect() as conn, conn.transaction():
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE experiment_run SET state=CASE WHEN attempt_count >= %s
+                        THEN 'FAILED' ELSE 'QUEUED' END,
+                        current_token=NULL, lease_expires_at=NULL,
+                        error_code=CASE WHEN attempt_count >= %s
+                        THEN 'attempts_exhausted' ELSE NULL END,
+                        updated_at=CURRENT_TIMESTAMP
+                    WHERE id=%s AND current_token=%s AND state='RUNNING'
+                """, (MAX_ATTEMPTS, MAX_ATTEMPTS, job.run_id, job.token))
+                failure_code = "worker_shutdown"
+                if cur.rowcount != 1:
+                    cur.execute("""
+                        UPDATE experiment_run SET state='CANCELLED', current_token=NULL,
+                            lease_expires_at=NULL, updated_at=CURRENT_TIMESTAMP
+                        WHERE id=%s AND current_token=%s AND state='CANCEL_REQUESTED'
+                    """, (job.run_id, job.token))
+                    if cur.rowcount != 1:
+                        return False
+                    failure_code = "cancelled"
+                cur.execute("""
+                    UPDATE run_attempt SET finished_at=CURRENT_TIMESTAMP, failure_code=%s
+                    WHERE id=%s AND fencing_token=%s
+                """, (failure_code, job.attempt_id, job.token))
+                return True
+
 
 def upload_artifacts(s3: Any, bucket: str, job: Claimed, run_dir: Path) -> tuple[str, str]:
     """Verify uploaded bytes by readback; return attempt-scoped index key/hash."""
@@ -201,11 +236,18 @@ def upload_artifacts(s3: Any, bucket: str, job: Claimed, run_dir: Path) -> tuple
     return key, digest
 
 
-def run_one(store: JobStore, s3: Any, bucket: str, job: Claimed) -> None:
-    stop, lost = threading.Event(), threading.Event()
+def run_one(store: JobStore, s3: Any, bucket: str, job: Claimed,
+            stop: threading.Event | None = None) -> None:
+    """Run one claimed job. A `stop` set before training releases the job.
+
+    Training is a blocking call and is never interrupted. Once it has finished,
+    uploading and publishing are cheaper than a rerun, so a stop that arrives
+    during training still publishes; Compose's stop grace period covers that.
+    """
+    finished, lost = threading.Event(), threading.Event()
 
     def keep_lease() -> None:
-        while not stop.wait(HEARTBEAT_SECONDS):
+        while not finished.wait(HEARTBEAT_SECONDS):
             try:
                 if not store.heartbeat(job):
                     lost.set()
@@ -217,6 +259,9 @@ def run_one(store: JobStore, s3: Any, bucket: str, job: Claimed) -> None:
     thread = threading.Thread(target=keep_lease, daemon=True)
     thread.start()
     try:
+        if stop is not None and stop.is_set():
+            store.release_owned(job)
+            return
         with tempfile.TemporaryDirectory(prefix="portfolio-worker-") as temporary:
             run_dir = execute_synthetic_request(job.request, Path(temporary))
             if lost.is_set():
@@ -229,7 +274,7 @@ def run_one(store: JobStore, s3: Any, bucket: str, job: Claimed) -> None:
         store.fail_owned(job)
         raise
     finally:
-        stop.set()
+        finished.set()
         thread.join(timeout=HEARTBEAT_SECONDS + 1)
 
 
@@ -248,20 +293,23 @@ def main() -> None:
     store = JobStore(dsn, worker_id)
     s3 = boto3.client("s3", endpoint_url=endpoint, region_name="us-east-1",
                       config=Config(s3={"addressing_style": "path"}))
-    while True:
+    # Docker stop sends SIGTERM; never claim new work after it, and release an
+    # owned job instead of publishing it (see run_one).
+    signal.signal(signal.SIGTERM, lambda signum, frame: STOP.set())
+    signal.signal(signal.SIGINT, lambda signum, frame: STOP.set())
+    while not STOP.is_set():
         try:
             job = store.claim()
             if job is None:
-                time.sleep(2)
+                STOP.wait(2)
                 continue
-            run_one(store, s3, bucket, job)
-        except KeyboardInterrupt:
-            return
+            run_one(store, s3, bucket, job, stop=STOP)
         except Exception as exc:
             # A retry or terminal failure is recorded in PostgreSQL when ownership
             # still exists. Keep one worker alive; never log request contents.
             print(f"Worker cycle failed: {type(exc).__name__}", flush=True)
-            time.sleep(2)
+            STOP.wait(2)
+    print("Worker stopped", flush=True)
 
 
 if __name__ == "__main__":
