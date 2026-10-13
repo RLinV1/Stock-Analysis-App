@@ -166,6 +166,70 @@ describe('runs client', () => {
     expect((await caught(client(fakeFetch(200, JSON.stringify(noReport)).fetchImpl).manifest(RUN_ID))).kind).toBe('invalid_response');
   });
 
+  test('list sends GET with the default limit and bearer token', async () => {
+    const fake = fakeFetch(200, JSON.stringify({ items: [], nextCursor: null }));
+    await expect(client(fake.fetchImpl).list()).resolves.toEqual({ items: [], nextCursor: null });
+    expect(fake.calls).toHaveLength(1);
+    const [{ url, init }] = fake.calls;
+    expect(url).toBe('http://127.0.0.1:8080/api/v1/runs?limit=20');
+    expect(init.method).toBe('GET');
+    expect(init.headers.Authorization).toBe(`Bearer ${TOKEN}`);
+    expect(init.body).toBeUndefined();
+  });
+
+  test('list appends the cursor and an explicit limit', async () => {
+    const fake = fakeFetch(200, JSON.stringify({ items: [], nextCursor: null }));
+    await client(fake.fetchImpl).list({ limit: 5, cursor: RUN_ID });
+    expect(fake.calls[0].url).toBe(`http://127.0.0.1:8080/api/v1/runs?limit=5&cursor=${RUN_ID}`);
+  });
+
+  test('list rejects an invalid limit or cursor without calling fetch', async () => {
+    const fake = fakeFetch(200, JSON.stringify({ items: [], nextCursor: null }));
+    for (const options of [{ limit: 0 }, { limit: 51 }, { limit: 2.5 }, { cursor: 'abc' }]) {
+      expect((await caught(client(fake.fetchImpl).list(options))).kind).toBe('invalid_input');
+    }
+    expect(fake.calls).toHaveLength(0);
+  });
+
+  test('list parses a page of run summaries', async () => {
+    const page = {
+      items: [
+        { runId: RUN_ID, state: 'COMPLETE', attemptCount: 1, manifestAvailable: true, errorCode: null, createdAt: '2026-10-13T08:15:30.123456Z' },
+        { runId: ATTEMPT_ID, state: 'FAILED', attemptCount: 3, manifestAvailable: false, createdAt: '2026-10-12T23:59:59Z' },
+      ],
+      nextCursor: ATTEMPT_ID,
+    };
+    await expect(client(fakeFetch(200, JSON.stringify(page)).fetchImpl).list()).resolves.toEqual({
+      items: [page.items[0], { ...page.items[1], errorCode: null }],
+      nextCursor: ATTEMPT_ID,
+    });
+  });
+
+  test('list treats a missing nextCursor as null', async () => {
+    const fake = fakeFetch(200, JSON.stringify({ items: [] }));
+    await expect(client(fake.fetchImpl).list()).resolves.toEqual({ items: [], nextCursor: null });
+  });
+
+  test('list rejects unexpected page shapes', async () => {
+    const item = { runId: RUN_ID, state: 'QUEUED', attemptCount: 0, manifestAvailable: false, errorCode: null, createdAt: '2026-10-13T08:15:30Z' };
+    const bodies = [
+      { items: [{ ...item, createdAt: '2026-10-13 08:15:30' }], nextCursor: null },
+      { items: [{ ...item, createdAt: 1760343330 }], nextCursor: null },
+      { items: [{ ...item, state: 'DONE' }], nextCursor: null },
+      { items: {}, nextCursor: null },
+      { items: [item], nextCursor: 'abc' },
+      [],
+    ];
+    for (const body of bodies) {
+      expect((await caught(client(fakeFetch(200, JSON.stringify(body)).fetchImpl).list())).kind).toBe('invalid_response');
+    }
+  });
+
+  test('list maps a 401 problem', async () => {
+    const unauthorized = await caught(client(fakeFetch(401, problem(401, 'unauthorized')).fetchImpl).list());
+    expect(unauthorized).toMatchObject({ kind: 'http', status: 401, code: 'unauthorized' });
+  });
+
   test('strips trailing slashes from the base URL', async () => {
     const fake = fakeFetch(200, JSON.stringify({ runId: RUN_ID, state: 'COMPLETE', attemptCount: 1, manifestAvailable: true, errorCode: null }));
     await client(fake.fetchImpl, 'http://127.0.0.1:8080//').status(RUN_ID);

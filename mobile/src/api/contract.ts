@@ -21,6 +21,10 @@ export const RUN_STATES = ['QUEUED', 'RUNNING', 'CANCEL_REQUESTED', 'CANCELLED',
 export type RunState = typeof RUN_STATES[number];
 export type AcceptedRun = { runId: string };
 export type RunStatus = { runId: string; state: RunState; attemptCount: number; manifestAvailable: boolean; errorCode: string | null };
+// createdAt stays the server's ISO-8601 UTC string, e.g. 2026-10-13T08:15:30.123456Z.
+export type RunSummary = RunStatus & { createdAt: string };
+export type RunPage = { items: RunSummary[]; nextCursor: string | null };
+export const LIST_LIMIT = { min: 1, max: 50, default: 20 };
 
 // Artifact index v1 (contracts/artifact-index.v1.schema.json).
 export type ArtifactFile = { path: string; key: string; sha256: string; bytes: number };

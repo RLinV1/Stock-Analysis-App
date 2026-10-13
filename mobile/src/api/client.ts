@@ -1,5 +1,5 @@
-import { RUN_STATES, validateRequest } from './contract';
-import type { AcceptedRun, ArtifactFile, ArtifactIndex, RunState, RunStatus, SyntheticRequestV1 } from './contract';
+import { LIST_LIMIT, RUN_STATES, validateRequest } from './contract';
+import type { AcceptedRun, ArtifactFile, ArtifactIndex, RunPage, RunState, RunStatus, RunSummary, SyntheticRequestV1 } from './contract';
 
 // Typed client for the local runs API (contracts/runs-api.v1.openapi.yaml).
 // It never fabricates a run ID or state: every failure throws RunsApiError.
@@ -31,11 +31,15 @@ export type RunsClient = {
   status(runId: string): Promise<RunStatus>;
   cancel(runId: string): Promise<RunStatus>;
   manifest(runId: string): Promise<ArtifactIndex>;
+  list(options?: ListOptions): Promise<RunPage>;
 };
+
+export type ListOptions = { limit?: number; cursor?: string };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{1,128}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
+const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?Z$/;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -86,6 +90,24 @@ function parseManifest(body: unknown): ArtifactIndex {
   const files = body.files.map(parseFile);
   if (!files.some((file) => file.path === 'report.json')) invalidResponse('manifest');
   return { run_id: body.run_id, attempt_id: body.attempt_id, kind: 'synthetic-a0', files };
+}
+
+function parseSummary(item: unknown): RunSummary {
+  if (!isObject(item) || typeof item.createdAt !== 'string' || !INSTANT.test(item.createdAt)) return invalidResponse('list');
+  let status: RunStatus;
+  try {
+    status = parseStatus(item);
+  } catch {
+    return invalidResponse('list');
+  }
+  return { ...status, createdAt: item.createdAt };
+}
+
+function parsePage(body: unknown): RunPage {
+  if (!isObject(body) || !Array.isArray(body.items)) return invalidResponse('list');
+  const { nextCursor } = body;
+  if (nextCursor !== undefined && nextCursor !== null && !isUuid(nextCursor)) return invalidResponse('list');
+  return { items: body.items.map(parseSummary), nextCursor: isUuid(nextCursor) ? nextCursor : null };
 }
 
 function problemCode(text: string): string | undefined {
@@ -172,6 +194,16 @@ export function createRunsClient({ baseUrl, token, fetchImpl = fetch, timeoutMs 
     async manifest(runId) {
       requireRunId(runId);
       return call('GET', `/api/v1/runs/${runId}/manifest`, parseManifest);
+    },
+    async list(options = {}) {
+      const { limit = LIST_LIMIT.default, cursor } = options;
+      if (typeof limit !== 'number' || !Number.isInteger(limit) || limit < LIST_LIMIT.min || limit > LIST_LIMIT.max) {
+        throw new RunsApiError('invalid_input', `Limit must be a whole number from ${LIST_LIMIT.min} to ${LIST_LIMIT.max}.`);
+      }
+      if (cursor !== undefined && !isUuid(cursor)) throw new RunsApiError('invalid_input', 'Cursor must be a run ID (UUID).');
+      let query = `limit=${encodeURIComponent(String(limit))}`;
+      if (cursor !== undefined) query += `&cursor=${encodeURIComponent(cursor)}`;
+      return call('GET', `/api/v1/runs?${query}`, parsePage);
     },
   };
 }
