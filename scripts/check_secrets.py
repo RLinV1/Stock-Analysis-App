@@ -32,7 +32,9 @@ BINARY_SNIFF_BYTES = 8 * 1024
 ALLOW_MARKER = "secret-scan: allow"
 
 # Directory names skipped wherever they appear in a path.
-SKIP_ANY_COMPONENT = frozenset({"node_modules", ".venv", ".maven-repo"})
+# Dependency, cache and build trees: never committed sources and very large to walk.
+SKIP_ANY_COMPONENT = frozenset({"node_modules", ".venv", ".maven-repo", ".maven-tmp", ".git",
+                                ".jest-cache", ".expo", "target", "__pycache__", ".pytest_cache"})
 # Directory names skipped only at the repository (or scan) root.
 SKIP_TOP_LEVEL = frozenset({"runs", "data"})
 
