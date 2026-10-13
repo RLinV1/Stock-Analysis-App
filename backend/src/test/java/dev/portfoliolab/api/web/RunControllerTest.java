@@ -233,6 +233,88 @@ class RunControllerTest {
                 + "\"}],\"kind\":\"synthetic-a0\",\"run_id\":\"r\"}").getBytes(StandardCharsets.UTF_8);
     }
 
+    private static byte[] indexWith(String path, String key, String sha256) {
+        return ("{\"attempt_id\":\"secret-attempt\",\"files\":[{\"bytes\":24,\"key\":\"" + key
+                + "\",\"path\":\"" + path + "\",\"sha256\":\"" + sha256
+                + "\"}],\"kind\":\"synthetic-a0\",\"run_id\":\"r\"}").getBytes(StandardCharsets.UTF_8);
+    }
+
+    @Test
+    void equityCurveReturnsWealthOnCommonDates() throws Exception {
+        UUID id = UUID.randomUUID();
+        String manifestKey = attemptPrefix(id) + "artifact-index.json";
+        String reportKey = attemptPrefix(id) + "report.json";
+        repository.snapshot = new Snapshot(id, "COMPLETE", 1, manifestKey, "b".repeat(64), null);
+        artifacts.objects.put(manifestKey, indexWith("report.json", reportKey, "e".repeat(64)));
+        artifacts.objects.put(reportKey, ("{\"test_dates\":[\"2024-01-02\",\"2024-01-03\"],\"cost_bps\":1,"
+                + "\"strategies\":{\"lstm\":{\"wealth\":[1.01,1.02]},\"equal_weight\":{\"wealth\":[0.99,1.0]}}}")
+                .getBytes(StandardCharsets.UTF_8));
+        mvc().perform(get("/api/v1/runs/" + id + "/equity-curve")
+                .header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "private, max-age=31536000, immutable"))
+                .andExpect(jsonPath("$.dates[1]").value("2024-01-03"))
+                .andExpect(jsonPath("$.costBps").value(1.0))
+                .andExpect(jsonPath("$.series[0].strategy").value("lstm"))
+                .andExpect(jsonPath("$.series[1].wealth[0]").value(0.99))
+                .andExpect(jsonPath("$.convention").exists())
+                .andExpect(content().string(not(containsString("secret-attempt"))));
+        assertEquals(List.of(manifestKey, reportKey), artifacts.keys);
+    }
+
+    @Test
+    void allocationsReturnWeightsPerStrategy() throws Exception {
+        UUID id = UUID.randomUUID();
+        String manifestKey = attemptPrefix(id) + "artifact-index.json";
+        String csvKey = attemptPrefix(id) + "allocations.csv";
+        repository.snapshot = new Snapshot(id, "COMPLETE", 1, manifestKey, "b".repeat(64), null);
+        artifacts.objects.put(manifestKey, indexWith("allocations.csv", csvKey, "f".repeat(64)));
+        artifacts.objects.put(csvKey, "return_date,strategy,SPY,TLT\r\n2024-01-02,lstm,0.7,0.3\r\n"
+                .getBytes(StandardCharsets.UTF_8));
+        mvc().perform(get("/api/v1/runs/" + id + "/allocations")
+                .header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.assets[0]").value("SPY"))
+                .andExpect(jsonPath("$.strategies[0].strategy").value("lstm"))
+                .andExpect(jsonPath("$.strategies[0].rows[0].returnDate").value("2024-01-02"))
+                .andExpect(jsonPath("$.strategies[0].rows[0].weights[1]").value(0.3));
+        assertEquals("f".repeat(64), artifacts.lastSha256);
+    }
+
+    @Test
+    void resultViewsRequireCompleteRunBeforeStorageRead() throws Exception {
+        UUID id = UUID.randomUUID();
+        repository.snapshot = new Snapshot(id, "QUEUED", 0, null, null, null);
+        for (String view : new String[] {"equity-curve", "allocations"}) {
+            mvc().perform(get("/api/v1/runs/" + id + "/" + view)
+                    .header("Authorization", "Bearer unit-test-secret-123"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("run_not_complete"));
+            mvc().perform(get("/api/v1/runs/" + UUID.randomUUID() + "/" + view)
+                    .header("Authorization", "Bearer unit-test-secret-123"))
+                    .andExpect(status().isNotFound());
+            mvc().perform(get("/api/v1/runs/" + id + "/" + view))
+                    .andExpect(status().isUnauthorized());
+        }
+        assertEquals(0, artifacts.reads);
+    }
+
+    @Test
+    void malformedResultContentIsBadGatewayWithStableCode() throws Exception {
+        UUID id = UUID.randomUUID();
+        String manifestKey = attemptPrefix(id) + "artifact-index.json";
+        String csvKey = attemptPrefix(id) + "allocations.csv";
+        repository.snapshot = new Snapshot(id, "COMPLETE", 1, manifestKey, "b".repeat(64), null);
+        artifacts.objects.put(manifestKey, indexWith("allocations.csv", csvKey, "f".repeat(64)));
+        artifacts.objects.put(csvKey, "return_date,strategy,SPY\n2024-01-02,lstm,NaN\n"
+                .getBytes(StandardCharsets.UTF_8));
+        mvc().perform(get("/api/v1/runs/" + id + "/allocations")
+                .header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.code").value("artifact_content_invalid"))
+                .andExpect(content().string(not(containsString("secret-attempt"))));
+    }
+
     @Test
     void reportRequiresBearer() throws Exception {
         mvc().perform(get("/api/v1/runs/" + UUID.randomUUID() + "/report"))
