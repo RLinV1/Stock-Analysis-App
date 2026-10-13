@@ -89,6 +89,13 @@ class JobStore:
                             lease_expires_at=NULL, error_code='invalid_request',
                             updated_at=CURRENT_TIMESTAMP WHERE id=%s
                     """, (run_id,))
+                    # An expired RUNNING row still has its prior open attempt.
+                    # Close it in this transaction before returning the failure.
+                    cur.execute("""
+                        UPDATE run_attempt SET finished_at=CURRENT_TIMESTAMP,
+                            failure_code='invalid_request'
+                        WHERE run_id=%s AND finished_at IS NULL
+                    """, (run_id,))
                     return None
                 cur.execute("""
                     UPDATE run_attempt SET finished_at=CURRENT_TIMESTAMP,

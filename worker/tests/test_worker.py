@@ -103,9 +103,14 @@ def test_invalid_stored_request_fails_terminally_instead_of_blocking_queue(monke
     store = JobStore("dbname=unused", "worker-test")
     monkeypatch.setattr(store, "_connect", lambda: FakeConnection(cursor))
     assert store.claim() is None
+    failed = [(sql, params) for sql, params in cursor.statements
+              if "UPDATE experiment_run" in sql and "state='FAILED'" in sql
+              and "error_code='invalid_request'" in sql]
+    assert failed == [(failed[0][0], (run_id,))]
+    # A recovered expired run's previous open attempt is closed in the same claim.
     sql, params = cursor.statements[-1]
-    assert "state='FAILED'" in sql and "error_code='invalid_request'" in sql
-    assert params == (run_id,)
+    assert "UPDATE run_attempt" in sql and "failure_code='invalid_request'" in sql
+    assert "finished_at IS NULL" in sql and params == (run_id,)
     assert not any("INSERT INTO run_attempt" in statement for statement, _ in cursor.statements)
 
 

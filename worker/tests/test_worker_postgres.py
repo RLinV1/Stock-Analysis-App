@@ -399,3 +399,24 @@ def test_invalid_stored_request_fails_without_blocking_queue(db, store):
     assert isinstance(job, Claimed)
     assert job.run_id == valid
     assert run_row(db, valid)["state"] == "RUNNING"
+
+
+def test_invalid_reclaimed_request_closes_prior_attempt(db, store):
+    run_id = insert_run(db)
+    first = store.claim()
+    assert first is not None
+    db.execute("""
+        UPDATE experiment_run SET request_json=%s WHERE id=%s
+    """, (Jsonb({**SMOKE_REQUEST, "contract_version": 2}), run_id))
+    expire_lease(db, run_id)
+
+    assert store.claim() is None
+    row = run_row(db, run_id)
+    assert row["state"] == "FAILED"
+    assert row["error_code"] == "invalid_request"
+    assert row["attempt_count"] == 1
+    assert row["current_token"] is None and row["lease_expires_at"] is None
+    [attempt] = attempts(db, run_id)
+    assert attempt["id"] == first.attempt_id
+    assert attempt["finished_at"] is not None
+    assert attempt["failure_code"] == "invalid_request"
