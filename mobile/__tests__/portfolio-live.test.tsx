@@ -7,7 +7,7 @@ import type { AcceptedRun, ArtifactIndex, RunPage, RunState, RunStatus, RunSumma
 const RUN_ID = '11111111-2222-4333-8444-555555555555';
 const ATTEMPT_ID = '66666666-7777-4888-9999-aaaaaaaaaaaa';
 const BASE_URL = 'http://10.0.2.2:8080';
-const TOKEN = 'operator-secret-token-0123';
+const TOKEN = 'unit-test-secret-live-0123';
 
 function statusOf(state: RunState): RunStatus {
   return { runId: RUN_ID, state, attemptCount: 1, manifestAvailable: state === 'COMPLETE', errorCode: null };

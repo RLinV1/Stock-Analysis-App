@@ -3,7 +3,7 @@ import type { FetchInit, FetchLike, FetchResponse } from '../src/api/client';
 import { validateRequest } from '../src/api/contract';
 import type { SyntheticRequestV1 } from '../src/api/contract';
 
-const TOKEN = 'operator-secret-token-0123456789';
+const TOKEN = 'unit-test-secret-client-0123456789';
 const RUN_ID = '3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e';
 const ATTEMPT_ID = '7a6b5c4d-3e2f-4a1b-9c8d-7e6f5a4b3c2d';
 const HASH = 'a'.repeat(64);
