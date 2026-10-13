@@ -5,12 +5,12 @@ import { createRunsClient, RunsApiError } from './api/client';
 import type { RunsClient } from './api/client';
 // Synthetic request v1 bounds live in ./api/contract (contracts/synthetic-run-request.v1.schema.json).
 import { EPOCHS, LOOKBACK } from './api/contract';
-import type { ArtifactIndex, RunState, RunStatus, RunSummary, SyntheticRequestV1 } from './api/contract';
+import type { ArtifactIndex, RunReport, RunState, RunStatus, RunSummary, SyntheticRequestV1 } from './api/contract';
+import { ReportView } from './ReportView';
+import { dark, light } from './theme';
+import type { Colors } from './theme';
 
 type Page = 'experiments' | 'service' | 'new' | 'detail' | 'results' | 'run' | 'runResults';
-type Colors = { bg: string; surface: string; text: string; secondary: string; accent: string; onAccent: string; border: string; muted: string; error: string };
-const light: Colors = { bg: '#F3F5F8', surface: '#FFFFFF', text: '#182437', secondary: '#45566C', accent: '#174EA6', onAccent: '#FFFFFF', border: '#D6DFE8', muted: '#E8EDF3', error: '#A4262C' };
-const dark: Colors = { bg: '#101923', surface: '#1A2837', text: '#F5F7FA', secondary: '#C4D0DE', accent: '#A4C8FF', onAccent: '#102641', border: '#38506A', muted: '#26394B', error: '#FFB4B4' };
 
 // Fixed parts of the synthetic request v1 that the form does not expose yet; shown on screen before Start.
 const FIXED = { observations: 420, datasetSeed: 2026, hiddenSize: 64, executionSeed: 7, costBps: 1 };
@@ -30,11 +30,11 @@ const STATE_EXPLANATION: Record<RunState, string> = {
   RUNNING: 'The worker reports this run in progress. No completion percentage is available.',
   CANCEL_REQUESTED: 'The run stays pending until the worker confirms it stopped. Refresh to check.',
   CANCELLED: 'The service reports this run was cancelled.',
-  COMPLETE: 'The service reports this run finished. Its result files are listed under Results.',
+  COMPLETE: 'The service reports this run finished. Its measured report and result files are under Results.',
   FAILED: 'The service reports this run failed.',
 };
 
-type Operation = 'connect' | 'list' | 'submit' | 'status' | 'cancel' | 'manifest';
+type Operation = 'connect' | 'list' | 'submit' | 'status' | 'cancel' | 'manifest' | 'report';
 
 // Maps a client failure to an honest, token-free message. Never implies the service confirmed anything.
 function describeFailure(error: unknown, operation: Operation): string {
@@ -149,6 +149,10 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
   const [manifestLoading, setManifestLoading] = useState(false);
   const [manifestError, setManifestError] = useState<string | null>(null);
   const manifestSeq = useRef(0);
+  const [report, setReport] = useState<RunReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const reportSeq = useRef(0);
 
   const page = stack[stack.length - 1];
   const connected = client !== null;
@@ -173,6 +177,8 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
     setCancelNote(null);
     setManifest(null);
     setManifestError(null);
+    setReport(null);
+    setReportError(null);
   }
 
   function forgetToken() {
@@ -293,6 +299,24 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
     }
   }
 
+  async function loadReport(runId: string) {
+    if (!client) return;
+    const seq = ++reportSeq.current;
+    const gen = generation.current;
+    const current = () => seq === reportSeq.current && gen === generation.current;
+    setReport(null);
+    setReportLoading(true);
+    setReportError(null);
+    try {
+      const loaded = await client.report(runId);
+      if (current()) setReport(loaded);
+    } catch (error) {
+      if (current()) setReportError(describeFailure(error, 'report'));
+    } finally {
+      if (current()) setReportLoading(false);
+    }
+  }
+
   function openNew() {
     // One idempotency key per opened draft; retries of the same request reuse it.
     draft.current = { key: newDraftKey(), sentBody: null };
@@ -305,8 +329,15 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
     setRunStatus(null);
     setStatusFetchedAt(null);
     setCancelNote(null);
+    // Invalidate result loads for a previously selected run so they cannot land here.
+    manifestSeq.current++;
+    reportSeq.current++;
     setManifest(null);
     setManifestError(null);
+    setManifestLoading(false);
+    setReport(null);
+    setReportError(null);
+    setReportLoading(false);
     void loadStatus(runId, active);
   }
 
@@ -458,10 +489,18 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
         <Action label="Refresh status" onPress={() => { if (selectedRunId) void loadStatus(selectedRunId); }} colors={colors} disabled={!connected || statusLoading || cancelling || selectedRunId === null} quiet />
         {cancellable && <Action label="Cancel run" onPress={() => { void cancelRun(); }} colors={colors} disabled={!connected || cancelling || statusLoading} quiet />}
         {cancelling && <Text style={[styles.helper, { color: colors.secondary }]}>Sending cancellation… not confirmed yet.</Text>}
-        {runStatus?.state === 'COMPLETE' && <Action label="View results" onPress={() => { open('runResults'); void loadManifest(runStatus.runId); }} colors={colors} />}
+        {runStatus?.state === 'COMPLETE' && <Action label="View results" onPress={() => { open('runResults'); void loadReport(runStatus.runId); void loadManifest(runStatus.runId); }} colors={colors} />}
       </Card>}
 
       {page === 'runResults' && <>
+        {reportLoading && <Card colors={colors}>{text('Loading the measured report…', true)}</Card>}
+        {reportError && <Card colors={colors}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Report unavailable</Text>
+          {alertText(reportError)}
+          {text('No metrics are shown because the service did not return a valid report.', true)}
+          <Action label="Retry report" onPress={() => { if (selectedRunId) void loadReport(selectedRunId); }} colors={colors} disabled={!connected || reportLoading} quiet />
+        </Card>}
+        {report && <ReportView report={report} colors={colors} />}
         <Card colors={colors}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Result files · synthetic data</Text>
           {manifestLoading && text('Loading the artifact manifest…', true)}
@@ -473,10 +512,6 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
             {text(`Attempt ${manifest.attempt_id}`, true)}
             {manifest.files.map((file) => <Text key={file.path} style={[styles.fileRow, { color: colors.text }]}>{`${file.path} · ${file.bytes} ${file.bytes === 1 ? 'byte' : 'bytes'}`}</Text>)}
           </>}
-        </Card>
-        <Card colors={colors}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Report viewer not built yet</Text>
-          {text('This app does not read report contents yet, so no metrics, allocations or comparisons are shown for this run.', true)}
         </Card>
         {notice}
       </>}

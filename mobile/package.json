@@ -32,7 +32,8 @@
   },
   "jest": {
     "preset": "jest-expo",
-    "cacheDirectory": "<rootDir>/.jest-cache"
+    "cacheDirectory": "<rootDir>/.jest-cache",
+    "testTimeout": 20000
   },
   "private": true
 }

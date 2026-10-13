@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import PortfolioApp from '../src/PortfolioApp';
 import { RunsApiError } from '../src/api/client';
 import type { ListOptions, RunsClient, RunsClientOptions } from '../src/api/client';
-import type { AcceptedRun, ArtifactIndex, RunPage, RunState, RunStatus, RunSummary, SyntheticRequestV1 } from '../src/api/contract';
+import type { AcceptedRun, ArtifactIndex, RunPage, RunReport, RunState, RunStatus, RunSummary, SyntheticRequestV1 } from '../src/api/contract';
 
 const RUN_ID = '11111111-2222-4333-8444-555555555555';
 const ATTEMPT_ID = '66666666-7777-4888-9999-aaaaaaaaaaaa';
@@ -27,11 +27,23 @@ const MANIFEST: ArtifactIndex = {
   ],
 };
 
+const REPORT: RunReport = {
+  researchRunId: '20261013T081530-a1b2c3d4e5f6',
+  methodLabel: 'synthetic-smoke',
+  testDates: ['2026-10-12', '2026-10-13'],
+  costBps: 1,
+  strategies: {
+    lstm: { cumulativeReturn: 0.1234, annualizedVolatility: 0.2, sharpe: 0.81, sharpeNote: null, maxDrawdown: 0.04, totalTurnover: 1.3, totalCostReturnUnits: 0.00013, observations: 2 },
+    equal_weight: { cumulativeReturn: 0.1, annualizedVolatility: 0, sharpe: null, sharpeNote: 'Undefined: zero or near-zero volatility', maxDrawdown: 0, totalTurnover: 1, totalCostReturnUnits: 0.0001, observations: 2 },
+  },
+};
+
 type FakeClient = {
   submit: jest.Mock<Promise<AcceptedRun>, [SyntheticRequestV1, string]>;
   status: jest.Mock<Promise<RunStatus>, [string]>;
   cancel: jest.Mock<Promise<RunStatus>, [string]>;
   manifest: jest.Mock<Promise<ArtifactIndex>, [string]>;
+  report: jest.Mock<Promise<RunReport>, [string]>;
   list: jest.Mock<Promise<RunPage>, [ListOptions?]>;
 };
 
@@ -41,6 +53,7 @@ function fakeService(state: RunState = 'QUEUED') {
     status: jest.fn<Promise<RunStatus>, [string]>(async () => statusOf(state)),
     cancel: jest.fn<Promise<RunStatus>, [string]>(async () => statusOf('CANCEL_REQUESTED')),
     manifest: jest.fn<Promise<ArtifactIndex>, [string]>(async () => MANIFEST),
+    report: jest.fn<Promise<RunReport>, [string]>(async () => REPORT),
     list: jest.fn<Promise<RunPage>, [ListOptions?]>(async () => ({ items: [summaryOf(state)], nextCursor: null })),
   };
   const createClient = jest.fn<RunsClient, [RunsClientOptions]>(() => client);
@@ -189,7 +202,7 @@ describe('Portfolio Lab live service', () => {
     expect(client.status).toHaveBeenCalledTimes(2);
   });
 
-  test('lists manifest files for a complete run without inventing metrics', async () => {
+  test('shows the measured report and manifest files for a complete run', async () => {
     const { client, createClient } = fakeService('COMPLETE');
     await enterConnection(createClient);
     await screen.findByText('Live experiments');
@@ -203,8 +216,35 @@ describe('Portfolio Lab live service', () => {
     expect(screen.getByText('weights.csv · 1 byte')).toBeTruthy();
     expect(client.manifest).toHaveBeenCalledWith(RUN_ID);
     expect(screen.getByRole('header', { name: 'Results' })).toBeTruthy();
-    expect(screen.getByText('Report viewer not built yet')).toBeTruthy();
-    expect(screen.queryByText(/Sharpe/)).toBeNull();
+    expect(client.report).toHaveBeenCalledWith(RUN_ID);
+    expect(screen.getByText('Measured report')).toBeTruthy();
+    expect(screen.getByText('SYNTHETIC DATA')).toBeTruthy();
+    expect(screen.getByText('Evaluation: 2026-10-12 to 2026-10-13')).toBeTruthy();
+    expect(screen.getByText('+12.34%')).toBeTruthy();
+    expect(screen.getByText('0.81')).toBeTruthy();
+    // An undefined Sharpe ratio keeps its reason and gets no numeric substitute.
+    expect(screen.getByText('Unavailable')).toBeTruthy();
+    expect(screen.getByText('Sharpe: Undefined: zero or near-zero volatility')).toBeTruthy();
+    expect(screen.queryByText('Report viewer not built yet')).toBeNull();
     expect(screen.getByText(/Not investment advice/)).toBeTruthy();
+  });
+
+  test('shows an honest report failure with retry and no metrics', async () => {
+    const { client, createClient } = fakeService('COMPLETE');
+    client.report.mockRejectedValueOnce(new RunsApiError('http', 'HTTP 502', 502, 'artifact_integrity_failure'));
+    await enterConnection(createClient);
+    await screen.findByText('Live experiments');
+    await fireEvent.press(screen.getByRole('button', { name: /Open run 11111111/ }));
+    await screen.findByText('State: Complete');
+    await fireEvent.press(screen.getByRole('button', { name: 'View results' }));
+
+    expect(await screen.findByText('Report unavailable')).toBeTruthy();
+    expect(screen.getByText(/artifact_integrity_failure/)).toBeTruthy();
+    expect(screen.queryByText('Measured report')).toBeNull();
+    expect(screen.queryByText(/%$/)).toBeNull();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Retry report' }));
+    expect(await screen.findByText('Measured report')).toBeTruthy();
+    expect(client.report).toHaveBeenCalledTimes(2);
   });
 });

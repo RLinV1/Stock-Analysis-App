@@ -1,5 +1,5 @@
 import { LIST_LIMIT, RUN_STATES, validateRequest } from './contract';
-import type { AcceptedRun, ArtifactFile, ArtifactIndex, RunPage, RunState, RunStatus, RunSummary, SyntheticRequestV1 } from './contract';
+import type { AcceptedRun, ArtifactFile, ArtifactIndex, RunPage, RunReport, RunState, RunStatus, RunSummary, StrategyMetrics, SyntheticRequestV1 } from './contract';
 
 // Typed client for the local runs API (contracts/runs-api.v1.openapi.yaml).
 // It never fabricates a run ID or state: every failure throws RunsApiError.
@@ -31,6 +31,7 @@ export type RunsClient = {
   status(runId: string): Promise<RunStatus>;
   cancel(runId: string): Promise<RunStatus>;
   manifest(runId: string): Promise<ArtifactIndex>;
+  report(runId: string): Promise<RunReport>;
   list(options?: ListOptions): Promise<RunPage>;
 };
 
@@ -40,6 +41,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{1,128}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?Z$/;
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -90,6 +92,70 @@ function parseManifest(body: unknown): ArtifactIndex {
   const files = body.files.map(parseFile);
   if (!files.some((file) => file.path === 'report.json')) invalidResponse('manifest');
   return { run_id: body.run_id, attempt_id: body.attempt_id, kind: 'synthetic-a0', files };
+}
+
+function manifestFor(runId: string) {
+  return (body: unknown) => {
+    const index = parseManifest(body);
+    if (index.run_id.toLowerCase() !== runId.toLowerCase()) return invalidResponse('manifest');
+    return index;
+  };
+}
+
+function finiteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function parseMetrics(value: unknown): StrategyMetrics {
+  if (!isObject(value)) return invalidResponse('report');
+  const { cumulative_return, annualized_volatility, sharpe, sharpe_note, max_drawdown,
+    total_turnover, total_cost_return_units, observations } = value;
+  if (!finiteNumber(cumulative_return) || cumulative_return <= -1
+    || !finiteNumber(annualized_volatility) || annualized_volatility < 0
+    || (sharpe !== null && !finiteNumber(sharpe))
+    || (sharpe_note !== null && typeof sharpe_note !== 'string')
+    || (sharpe === null && (typeof sharpe_note !== 'string' || sharpe_note.length === 0))
+    || !finiteNumber(max_drawdown) || max_drawdown < 0 || max_drawdown > 1
+    || !finiteNumber(total_turnover) || total_turnover < 0
+    || !finiteNumber(total_cost_return_units) || total_cost_return_units < 0
+    || typeof observations !== 'number' || !Number.isSafeInteger(observations) || observations < 1) {
+    return invalidResponse('report');
+  }
+  return {
+    cumulativeReturn: cumulative_return,
+    annualizedVolatility: annualized_volatility,
+    sharpe,
+    sharpeNote: sharpe_note,
+    maxDrawdown: max_drawdown,
+    totalTurnover: total_turnover,
+    totalCostReturnUnits: total_cost_return_units,
+    observations,
+  };
+}
+
+function parseReport(body: unknown): RunReport {
+  if (!isObject(body) || typeof body.run_id !== 'string' || body.run_id.length === 0
+    || typeof body.method_label !== 'string' || body.method_label.length === 0
+    || !Array.isArray(body.test_dates) || body.test_dates.length === 0
+    || !body.test_dates.every((date) => typeof date === 'string' && DATE.test(date))
+    || !finiteNumber(body.cost_bps) || body.cost_bps < 0 || body.cost_bps > 100
+    || !isObject(body.strategies) || Object.keys(body.strategies).length === 0) {
+    return invalidResponse('report');
+  }
+  const strategies: Record<string, StrategyMetrics> = Object.create(null);
+  for (const [name, result] of Object.entries(body.strategies)) {
+    if (name.length === 0 || !isObject(result)) return invalidResponse('report');
+    const metrics = parseMetrics(result.metrics);
+    if (metrics.observations !== body.test_dates.length) return invalidResponse('report');
+    strategies[name] = metrics;
+  }
+  return {
+    researchRunId: body.run_id,
+    methodLabel: body.method_label,
+    testDates: body.test_dates,
+    costBps: body.cost_bps,
+    strategies,
+  };
 }
 
 function parseSummary(item: unknown): RunSummary {
@@ -193,7 +259,11 @@ export function createRunsClient({ baseUrl, token, fetchImpl = fetch, timeoutMs 
     },
     async manifest(runId) {
       requireRunId(runId);
-      return call('GET', `/api/v1/runs/${runId}/manifest`, parseManifest);
+      return call('GET', `/api/v1/runs/${runId}/manifest`, manifestFor(runId));
+    },
+    async report(runId) {
+      requireRunId(runId);
+      return call('GET', `/api/v1/runs/${runId}/report`, parseReport);
     },
     async list(options = {}) {
       const { limit = LIST_LIMIT.default, cursor } = options;

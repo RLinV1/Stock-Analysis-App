@@ -30,6 +30,26 @@ export const LIST_LIMIT = { min: 1, max: 50, default: 20 };
 export type ArtifactFile = { path: string; key: string; sha256: string; bytes: number };
 export type ArtifactIndex = { run_id: string; attempt_id: string; kind: 'synthetic-a0'; files: ArtifactFile[] };
 
+// Displayable subset of the A0 report. The report's local research ID is not
+// the service UUID used in the /api/v1/runs/{runId}/report URL.
+export type StrategyMetrics = {
+  cumulativeReturn: number;
+  annualizedVolatility: number;
+  sharpe: number | null;
+  sharpeNote: string | null;
+  maxDrawdown: number;
+  totalTurnover: number;
+  totalCostReturnUnits: number;
+  observations: number;
+};
+export type RunReport = {
+  researchRunId: string;
+  methodLabel: string;
+  testDates: string[];
+  costBps: number;
+  strategies: Record<string, StrategyMetrics>;
+};
+
 type Range = { min: number; max: number };
 
 function isObject(value: unknown): value is Record<string, unknown> {
