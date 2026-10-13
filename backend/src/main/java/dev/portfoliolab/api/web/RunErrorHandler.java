@@ -11,10 +11,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public final class RunErrorHandler {
-    @ExceptionHandler({IllegalArgumentException.class, MissingRequestHeaderException.class})
+    // A malformed run ID path segment is a client error with the same stable code.
+    @ExceptionHandler({IllegalArgumentException.class, MissingRequestHeaderException.class,
+            MethodArgumentTypeMismatchException.class})
     public ResponseEntity<Map<String, Object>> invalidRequest(Exception ignored) {
         return problem(HttpStatus.BAD_REQUEST, "invalid_request");
     }

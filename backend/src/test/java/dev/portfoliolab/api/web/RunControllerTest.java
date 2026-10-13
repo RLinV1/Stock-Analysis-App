@@ -156,6 +156,13 @@ class RunControllerTest {
     }
 
     @Test
+    void malformedRunIdIsInvalidRequest() throws Exception {
+        mvc().perform(get("/api/v1/runs/not-a-uuid").header("Authorization", "Bearer unit-test-secret-123"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("invalid_request"));
+    }
+
+    @Test
     void manifestRequiresBearer() throws Exception {
         mvc().perform(get("/api/v1/runs/" + UUID.randomUUID() + "/manifest"))
                 .andExpect(status().isUnauthorized());

@@ -1,0 +1,207 @@
+openapi: 3.1.0
+info:
+  title: Portfolio Lab local runs API
+  version: 1.0.0
+  description: >
+    Routes implemented by the Spring API in backend/ for the local synthetic
+    service slice. Single local operator; every route except GET
+    /actuator/health requires the bearer credential. Problem responses carry a
+    stable `code` and never include internal paths, object keys or stack traces.
+    This documents source-level behavior covered by MockMvc tests; a live
+    PostgreSQL/LocalStack round trip has not been verified yet.
+servers:
+  - url: http://127.0.0.1:8080
+    description: Compose publishes the API on host loopback only.
+security:
+  - operatorBearer: []
+paths:
+  /api/v1/runs:
+    post:
+      summary: Submit a synthetic run
+      description: >
+        Accepts only synthetic request v1. The same Idempotency-Key with the same
+        canonical body returns the original run ID and does not enqueue another
+        run; the same key with a different body returns 409. The response never
+        claims a state; read the run to learn it.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './synthetic-run-request.v1.schema.json'
+      responses:
+        '202':
+          description: Accepted or already accepted under this key.
+          headers:
+            Location:
+              description: /api/v1/runs/{runId}
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AcceptedRun'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '409':
+          description: Idempotency key reused with a different request (`idempotency_conflict`).
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+  /api/v1/runs/{runId}:
+    get:
+      summary: Read run status
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Current state.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RunStatus'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/runs/{runId}/cancel:
+    post:
+      summary: Request cancellation
+      description: >
+        Idempotent. QUEUED becomes CANCELLED; RUNNING becomes CANCEL_REQUESTED
+        until the worker stops or its lease expires. Terminal states are
+        unchanged. The response reports the actual resulting state.
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: State after the request.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RunStatus'}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/runs/{runId}/manifest:
+    get:
+      summary: Read the completed artifact index
+      description: >
+        Returns the immutable artifact index registered for a COMPLETE run,
+        after verifying its SHA-256 against the value stored in PostgreSQL.
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Verified artifact index bytes.
+          headers:
+            Cache-Control:
+              schema: {type: string, const: 'private, max-age=31536000, immutable'}
+          content:
+            application/json:
+              schema:
+                $ref: './artifact-index.v1.schema.json'
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409':
+          description: The run has no completed result (`run_not_complete`).
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '502':
+          description: >
+            Storage failed (`artifact_unavailable`), the object exceeded 1 MiB
+            (`artifact_too_large`) or its bytes did not match the registered hash
+            (`artifact_integrity_failure`).
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+  /actuator/health:
+    get:
+      summary: Minimal service health
+      description: Only this exact path is public. Details are never shown.
+      security: []
+      responses:
+        '200':
+          description: Service is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: {type: string}
+components:
+  securitySchemes:
+    operatorBearer:
+      type: http
+      scheme: bearer
+      description: PORTFOLIO_OPERATOR_TOKEN, at least 16 characters. Never logged.
+  parameters:
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9._:-]{1,128}$'
+  responses:
+    InvalidRequest:
+      description: Invalid body, header or path value (`invalid_request`).
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Unauthorized:
+      description: Missing or wrong bearer credential (`unauthorized`).
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    NotFound:
+      description: No run with this ID for the operator. Empty body.
+  schemas:
+    AcceptedRun:
+      type: object
+      additionalProperties: false
+      required: [runId]
+      properties:
+        runId: {type: string, format: uuid}
+    RunStatus:
+      type: object
+      additionalProperties: false
+      # errorCode serialization of null (present or omitted) is not yet checked
+      # against a live server; clients treat both as "no error".
+      required: [runId, state, attemptCount, manifestAvailable]
+      properties:
+        runId: {type: string, format: uuid}
+        state:
+          type: string
+          enum: [QUEUED, RUNNING, CANCEL_REQUESTED, CANCELLED, COMPLETE, FAILED]
+        attemptCount: {type: integer, minimum: 0, maximum: 3}
+        manifestAvailable:
+          type: boolean
+          description: True only when state is COMPLETE and a manifest is registered.
+        errorCode:
+          type: [string, 'null']
+          description: >
+            Sanitized failure code, for example worker_failure,
+            attempts_exhausted or invalid_request; null when none.
+    Problem:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type: {type: string, const: about:blank}
+        title: {type: string}
+        status: {type: integer}
+        code:
+          type: string
+          enum:
+            - unauthorized
+            - invalid_request
+            - idempotency_conflict
+            - run_not_complete
+            - artifact_unavailable
+            - artifact_too_large
+            - artifact_integrity_failure
