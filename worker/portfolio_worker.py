@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from portfolio_lab.service_contract import execute_synthetic_request, validate_request
+from portfolio_lab.service_contract import RunStopped, execute_synthetic_request, validate_request
 
 
 LEASE_SECONDS = 60
@@ -250,9 +250,13 @@ def run_one(store: JobStore, s3: Any, bucket: str, job: Claimed,
             stop: threading.Event | None = None) -> None:
     """Run one claimed job. A `stop` set before training releases the job.
 
-    Training is a blocking call and is never interrupted. Once it has finished,
+    A worker `stop` never interrupts training. Once training has finished,
     uploading and publishing are cheaper than a rerun, so a stop that arrives
     during training still publishes; Compose's stop grace period covers that.
+
+    Losing ownership does interrupt training: when a heartbeat finds the run no
+    longer RUNNING under this token (for example CANCEL_REQUESTED), training
+    stops at the next epoch boundary and the run is cancelled if still owned.
     """
     finished, lost = threading.Event(), threading.Event()
 
@@ -273,7 +277,14 @@ def run_one(store: JobStore, s3: Any, bucket: str, job: Claimed,
             store.release_owned(job)
             return
         with tempfile.TemporaryDirectory(prefix="portfolio-worker-") as temporary:
-            run_dir = execute_synthetic_request(job.request, Path(temporary))
+            try:
+                run_dir = execute_synthetic_request(job.request, Path(temporary),
+                                                    should_stop=lost.is_set)
+            except RunStopped:
+                # Only `lost` stops training. cancel_owned succeeds only for our
+                # CANCEL_REQUESTED run; False means another owner took over.
+                store.cancel_owned(job)
+                return
             if lost.is_set():
                 store.cancel_owned(job)
                 return

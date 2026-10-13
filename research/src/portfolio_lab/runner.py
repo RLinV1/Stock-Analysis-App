@@ -15,6 +15,7 @@ import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 import psutil
@@ -25,6 +26,18 @@ from .data import file_hash, load_dataset, make_samples, save_json
 from .metrics import CONVENTIONS, baseline_weights, evaluate
 from .model import Allocator, negative_sharpe
 from .provenance import source_revision
+
+
+class RunStopped(Exception):
+    """A caller's stop request ended training at an epoch boundary.
+
+    The run directory is left paused, like stop_after_epochs, with no report.
+    """
+
+    def __init__(self, run_dir: Path, epoch: int):
+        super().__init__(f"Run stopped by request after epoch {epoch}")
+        self.run_dir = run_dir
+        self.epoch = epoch
 
 
 @dataclass(frozen=True)
@@ -85,7 +98,14 @@ def _predict(model: Allocator, x: np.ndarray, device: str, batch_size: int) -> n
 
 
 def run_experiment(dataset_path: Path, config: RunConfig, output_root: Path,
-                   *, resume: Path | None = None, stop_after_epochs: int | None = None) -> Path:
+                   *, resume: Path | None = None, stop_after_epochs: int | None = None,
+                   should_stop: Callable[[], bool] | None = None) -> Path:
+    """Train and evaluate one run.
+
+    `should_stop` is polled before the first epoch and after each epoch's
+    checkpoint is written; True pauses the run and raises RunStopped. It is
+    not part of the run identity, so it never changes results or manifests.
+    """
     config.validate()
     if stop_after_epochs is not None and stop_after_epochs < 1:
         raise ValueError("stop_after_epochs must be positive")
@@ -141,7 +161,11 @@ def run_experiment(dataset_path: Path, config: RunConfig, output_root: Path,
             shutil.copyfile(dataset.manifest_path.parent / dataset.manifest["csv"],
                             run_dir / "dataset" / dataset.manifest["csv"])
         try:
-            _train(run_dir, dataset, samples, config, identity_hash, resume is not None, stop_after_epochs)
+            _train(run_dir, dataset, samples, config, identity_hash, resume is not None,
+                   stop_after_epochs, should_stop)
+        except RunStopped:
+            # _train already recorded the paused, resumable state.
+            raise
         except Exception as exc:
             save_json(run_dir / "status.json", {"state": "failed", "error_type": type(exc).__name__,
                                                 "error": str(exc), "checkpoint_available": (run_dir / "checkpoint.pt").exists()})
@@ -149,7 +173,8 @@ def run_experiment(dataset_path: Path, config: RunConfig, output_root: Path,
     return run_dir
 
 
-def _train(run_dir, dataset, samples, config, identity_hash, resuming, stop_after_epochs):
+def _train(run_dir, dataset, samples, config, identity_hash, resuming, stop_after_epochs,
+           should_stop=None):
     torch.set_num_threads(1)
     torch.use_deterministic_algorithms(True)
     random.seed(config.seed)
@@ -180,6 +205,12 @@ def _train(run_dir, dataset, samples, config, identity_hash, resuming, stop_afte
     target_epoch = config.epochs if stop_after_epochs is None else min(config.epochs, start_epoch + stop_after_epochs)
     save_json(run_dir / "status.json", {"state": "running", "epoch": start_epoch, "epoch_budget": config.epochs})
     for epoch in range(start_epoch, target_epoch):
+        # Epoch boundary: the previous epoch's checkpoint and status are durable.
+        if should_stop is not None and should_stop():
+            save_json(run_dir / "status.json", {"state": "paused", "epoch": epoch,
+                                                "epoch_budget": config.epochs,
+                                                "reason": "stop_requested"})
+            raise RunStopped(run_dir, epoch)
         model.train()
         losses = []
         batch_start = 0

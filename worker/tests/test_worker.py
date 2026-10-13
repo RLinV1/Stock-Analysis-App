@@ -133,7 +133,7 @@ class RecordingStore:
         self.calls.append("fail_owned")
 
 
-def fake_execute(request, root):
+def fake_execute(request, root, **kwargs):
     run_dir = root / "run"
     run_dir.mkdir()
     (run_dir / "report.json").write_text("{}", encoding="utf-8")
@@ -149,7 +149,7 @@ def test_run_one_publishes_completed_attempt(monkeypatch):
 
 
 def test_run_one_does_not_upload_after_losing_lease(monkeypatch):
-    def slow_execute(request, root):
+    def slow_execute(request, root, **kwargs):
         # Let the heartbeat thread observe a lost lease before execution returns.
         deadline = time.monotonic() + 5
         while "heartbeat" not in store.calls and time.monotonic() < deadline:
@@ -172,7 +172,7 @@ def test_run_one_cancels_when_conditional_publish_loses(monkeypatch):
 
 
 def test_run_one_records_failure_and_reraises(monkeypatch):
-    def broken(request, root):
+    def broken(request, root, **kwargs):
         raise RuntimeError("training failed")
 
     monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", broken)
@@ -246,7 +246,7 @@ class ReleasingStore(RecordingStore):
 
 
 def test_run_one_releases_without_training_when_stop_already_requested(monkeypatch):
-    def must_not_run(request, root):
+    def must_not_run(request, root, **kwargs):
         raise AssertionError("training started after stop was requested")
 
     monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", must_not_run)
@@ -261,7 +261,7 @@ def test_run_one_still_publishes_when_stop_arrives_during_training(monkeypatch):
     # Finished training is cheaper to publish than to rerun after a release.
     stop = portfolio_worker.threading.Event()
 
-    def execute_then_stop(request, root):
+    def execute_then_stop(request, root, **kwargs):
         run_dir = fake_execute(request, root)
         stop.set()
         return run_dir
@@ -331,3 +331,69 @@ def test_release_owned_leaves_unowned_run_untouched(monkeypatch):
     monkeypatch.setattr(store, "_connect", lambda: FakeConnection(cursor))
     assert store.release_owned(job()) is False
     assert not any("run_attempt" in sql for sql, _ in cursor.statements)
+
+
+def stop_when_lost(request, root, *, should_stop):
+    # Stand-in for the runner's epoch-boundary check: train until told to stop.
+    deadline = time.monotonic() + 5
+    while not should_stop() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert should_stop(), "heartbeat never reported the lost lease"
+    raise portfolio_worker.RunStopped(root / "run", 1)
+
+
+class DeclinedCancelStore(RecordingStore):
+    def cancel_owned(self, job):
+        self.calls.append("cancel_owned")
+        return False
+
+
+def test_run_one_stops_training_and_cancels_when_lease_is_lost(monkeypatch):
+    monkeypatch.setattr(portfolio_worker, "HEARTBEAT_SECONDS", 0.01)
+    monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", stop_when_lost)
+    store, s3 = RecordingStore(heartbeat=False), FakeS3()
+    run_one(store, s3, "lab-artifacts", job())
+    assert store.calls == ["heartbeat", "cancel_owned"]
+    assert "fail_owned" not in store.calls
+    assert s3.objects == {}
+
+
+def test_run_one_stopped_run_owned_elsewhere_is_left_alone(monkeypatch):
+    # cancel_owned is False when another worker holds the lease; nothing else runs.
+    monkeypatch.setattr(portfolio_worker, "HEARTBEAT_SECONDS", 0.01)
+    monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", stop_when_lost)
+    store, s3 = DeclinedCancelStore(heartbeat=False), FakeS3()
+    run_one(store, s3, "lab-artifacts", job())
+    assert store.calls == ["heartbeat", "cancel_owned"]
+    assert s3.objects == {}
+
+
+def test_run_one_stop_check_is_false_while_lease_is_held(monkeypatch):
+    seen = []
+
+    def record_stop_check(request, root, *, should_stop):
+        seen.append(should_stop())
+        return fake_execute(request, root)
+
+    monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", record_stop_check)
+    store, s3 = RecordingStore(), FakeS3()
+    run_one(store, s3, "lab-artifacts", job())
+    assert seen == [False]
+    assert store.calls == ["publish"]
+
+
+def test_run_one_worker_stop_during_training_is_not_a_training_stop(monkeypatch):
+    # A SIGTERM-style stop must not make the training stop check return True.
+    stop = portfolio_worker.threading.Event()
+    seen = []
+
+    def stop_then_check(request, root, *, should_stop):
+        stop.set()
+        seen.append(should_stop())
+        return fake_execute(request, root)
+
+    monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", stop_then_check)
+    store, s3 = ReleasingStore(), FakeS3()
+    run_one(store, s3, "lab-artifacts", job(), stop=stop)
+    assert seen == [False]
+    assert store.calls == ["publish"]

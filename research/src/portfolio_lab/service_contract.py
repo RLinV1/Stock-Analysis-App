@@ -6,10 +6,10 @@ import hashlib
 import json
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .data import load_dataset, synthetic_dataset
-from .runner import RunConfig, run_experiment
+from .runner import RunConfig, RunStopped, run_experiment  # noqa: F401 - re-exported for the worker
 
 
 SCHEMA_PATH = Path(__file__).resolve().parents[3] / "contracts" / "synthetic-run-request.v1.schema.json"
@@ -82,7 +82,9 @@ def load_request(path: Path) -> dict:
     return validate_request(request)
 
 
-def execute_synthetic_request(request: dict, output_root: Path) -> Path:
+def execute_synthetic_request(request: dict, output_root: Path, *,
+                              should_stop: Callable[[], bool] | None = None) -> Path:
+    """Run one request; a True `should_stop` raises RunStopped at an epoch boundary."""
     accepted = canonical_request(request)
     digest = hashlib.sha256(accepted).hexdigest()
     output_root.mkdir(parents=True, exist_ok=True)
@@ -105,7 +107,7 @@ def execute_synthetic_request(request: dict, output_root: Path) -> Path:
             cost_bps=request["execution"]["cost_bps"],
             device="cpu",
         )
-        run_dir = run_experiment(dataset_path, config, output_root)
+        run_dir = run_experiment(dataset_path, config, output_root, should_stop=should_stop)
     (run_dir / "request.json").write_bytes(accepted)
     (run_dir / "request.sha256").write_text(digest + "\n", encoding="ascii")
     return run_dir
