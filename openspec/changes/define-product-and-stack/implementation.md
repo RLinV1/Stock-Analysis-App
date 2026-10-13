@@ -167,3 +167,7 @@ Tier 1 must reproduce Table 1 before any public assertion about the paper is mad
 
 **Outstanding:** the data-source and redistribution-licensing audit had not returned when this
 record was written.
+
+## Planned requirements coverage continuation — 2026-10-13
+
+Before edits: add a durable whole-project requirements matrix and correct stale current-status sentences. Preserve all A1/B/C/D requirements and document the thin-service-before-v2 sequencing deviation. A GPT-6 Sol subagent owns docs/REQUIREMENTS-COVERAGE.md plus narrow status corrections in DESIGN.md, docs/READINESS.md and docs/SPEC.md; the parent owns OpenSpec records/handoff. No commands, checks or services will be executed in this continuation.

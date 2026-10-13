@@ -7,3 +7,9 @@ Written by the sub-agent and reviewed: `PortfolioApp.tsx` gains a Service connec
 Known gaps: Jest/TypeScript not run; possible act() warnings; Android blocks cleartext `http://` by default (API 28+), so a phone test against `http://` needs an explicit cleartext setting in app config or an HTTPS endpoint (Tailscale Serve, deferred). No live-service or device check.
 
 Verified on 2026-10-13 (component level only): TypeScript passed after the prop-less `App` wrapper fix, and Jest passed 41/41 including the live UI suite with an injected fake client. The app was not started; no live API, export or physical Android check. Remaining tasks: Android cleartext decision, live-service and device verification.
+
+## Planned continuation — 2026-10-13, before edits
+
+Implement a typed measured-report client and identity checks, then connect a restrained Apple-inspired Results UI with context, undefined metrics and failure/retry states. The primary agent owns PortfolioApp, UI tests and shared OpenSpec records; a GPT-6 Sol subagent owns API client source/tests. Read current source again before replacing any content because Claude may work concurrently. The user prohibits processes: no shell, tests, app, Docker, package installation, commits or CLI validation in this continuation. Prior 41-test evidence does not cover these upcoming changes. Source review only; all runtime/device checks and archive stay pending.
+
+Preimplementation clarification: A0 report.run_id names the local research directory, not the service UUID. Preserve it as researchRunId; bind UI data to the requested authenticated endpoint and guard stale responses. Only artifact-index run_id is compared with the service UUID.

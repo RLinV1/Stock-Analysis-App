@@ -92,3 +92,9 @@ Scope: review the updated documents against each other, the latest user instruct
 - [x] 6.3 Reconcile handoff and implementation evidence with this review; preserve unresolved requirements as open.
 
 The review ran 17 existing tests successfully. These document corrections change no numerical code, so tests are not repeated solely for wording changes. Publication/license choices and actual research/service implementation remain open; do not archive this change as fully implemented.
+
+## 11. Whole-project requirements coverage — 2026-10-13
+
+- [ ] 11.1 Write docs/REQUIREMENTS-COVERAGE.md mapping accepted/proposed/deferred requirements, evidence, owners and remaining gates.
+- [ ] 11.2 Reconcile stale implementation-status statements without promoting source to runtime evidence.
+- [ ] 11.3 Record source-only review and pending checks; validate links/OpenSpec when process execution is permitted.

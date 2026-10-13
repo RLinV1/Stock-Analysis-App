@@ -34,3 +34,7 @@ The user's request to fix the reviewed updated design is applied as reconciliati
 ## Evidence limitations
 
 Prior audit figures remain explicitly unverified. No code/API completion is implied by completed planning artifacts or successful OpenSpec validation. Historical decisions and earlier findings remain in implementation.md; current documents supersede their contradictory assertions.
+
+## 2026-10-13 requirements coverage continuation
+
+The user requested work across all project requirements. Add docs/REQUIREMENTS-COVERAGE.md to map the accepted A1/B/C/D requirements to actual source/evidence, remaining work, dependencies and verification gates, while retaining proposed defaults and deferred decisions explicitly. Reconcile stale source-status statements in DESIGN.md, docs/READINESS.md and docs/SPEC.md. This inventory does not reduce required scope or satisfy runtime gates.

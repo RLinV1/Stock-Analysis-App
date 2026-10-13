@@ -11,3 +11,8 @@
 - [ ] Add PostgreSQL integration tests for repository and worker SQL that skip without Docker or a test database.
 - [ ] Add standalone Compose images, health/init ordering and a full submit-to-result/restart/cancel verification.
 - [ ] Reconcile docs/handoff after each step, validate OpenSpec, archive only after required runtime checks pass.
+
+## Attempt lifecycle correction — 2026-10-13 continuation
+
+- [ ] Close an expired open attempt when claim rejects its invalid stored request; write a PostgreSQL regression test.
+- [ ] Execute the regression against PostgreSQL when allowed; reconcile implementation evidence and validate OpenSpec.

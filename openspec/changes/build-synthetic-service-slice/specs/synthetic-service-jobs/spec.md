@@ -49,3 +49,10 @@ After documented private prerequisites, Compose SHALL start the API, worker, Pos
 #### Scenario: Start local stack
 - **WHEN** the operator supplies the required private secrets and runs `docker compose up`
 - **THEN** health checks, migration and bucket initialization reach readiness and one synthetic request can complete end to end
+
+### Requirement: Close attempts when invalid recovered work fails
+When recovery rejects an expired run because its stored request is invalid, the worker SHALL mark the run failed and close its previous unfinished attempt in the same transaction. It SHALL NOT create a new attempt for that invalid request.
+
+#### Scenario: Expired running job has invalid stored request
+- **WHEN** claim selects an expired RUNNING job whose stored request fails validation
+- **THEN** the job becomes FAILED with invalid_request, its previous attempt has a finish time and failed outcome, and no new attempt is created
