@@ -140,7 +140,10 @@ class Samples:
     scale: np.ndarray
 
 
-def make_samples(dataset: Dataset, lookback: int, train_end: str, validation_end: str) -> Samples:
+def make_samples(dataset: Dataset, lookback: int, train_end: str, validation_end: str,
+                 *, allow_single_test: bool = False) -> Samples:
+    if not isinstance(allow_single_test, bool):
+        raise ValueError("allow_single_test must be a boolean")
     if lookback < 2 or train_end >= validation_end:
         raise ValueError("Require lookback >= 2 and train_end < validation_end")
     if train_end not in dataset.dates or validation_end not in dataset.dates:
@@ -154,8 +157,11 @@ def make_samples(dataset: Dataset, lookback: int, train_end: str, validation_end
     train = dates <= train_end
     validation = (dates > train_end) & (dates <= validation_end)
     test = dates > validation_end
-    if any(np.count_nonzero(mask) < 2 for mask in (train, validation, test)):
-        raise ValueError("Every chronological split needs at least two target observations")
+    minimums = (2, 2, 1 if allow_single_test else 2)
+    if any(np.count_nonzero(mask) < minimum for mask, minimum in zip((train, validation, test), minimums)):
+        message = ("Training and validation need at least two target observations; test needs one"
+                   if allow_single_test else "Every chronological split needs at least two target observations")
+        raise ValueError(message)
     # Only rows used as inputs by training samples contribute to scaler fitting.
     last_training_target = target_indices[train][-1]
     fit = features[:last_training_target]
