@@ -45,6 +45,14 @@ Option 1 is the recommendation: it removes the actual hazard at the lowest cost.
 
 ## Alternatives considered
 
+### Local secret safeguards — 2026-10-14 continuation
+
+Use the existing Python standard-library scanner for a cheap local gate. The repo-owned `.githooks/pre-commit` scans staged blobs and fails closed if Python/Git/scanning fails. Prefer the repository virtual environment's Python, falling back to `python3` and `python` so clones do not depend on this PC's absolute paths. Activation uses repository-local `core.hooksPath` only after checking for existing hooks/configuration.
+
+History mode enumerates objects reachable from all references, HEAD and reflogs with Git replacements disabled. Inspect unique blobs plus commit/tag text and tree-entry filenames, including paths excluded from working-tree scanning: force-added historical material cannot be hidden by today's ignore/skip rules. Scan content with the same size/binary/allowlist limits; reject shallow history. Findings name object identifiers rather than historical filenames, so filename contents cannot leak credentials. No raw Git stderr or token prefix is emitted. A clean scan is bounded detector evidence, not proof that history contains no secrets or restricted data; a dedicated scanner remains required before publication.
+
+The first history scan found four historical mobile-test TOKEN constants. They are test-authentication fixtures in mocked client/component tests, not deployed credentials. Preserve raw detection with `--no-history-allowlist`; default history mode may exclude only reviewed exact object-ID/rule/line tuples from a repo-owned rationale file. No substring, file-wide or global value exclusion is added; modified object content or another line/rule must still fail. The object ID fingerprints the entire reviewed blob independently of any secret value. This is not a history rewrite.
+
 **Defer until A0 completes.** Rejected. Every day without history is unrecoverable, and A0's deliverables include saved run comparisons whose provenance would be weaker without a commit to cite.
 
 **Set global Git identity.** Rejected as an unnecessary change to machine-wide configuration the user did not ask for.

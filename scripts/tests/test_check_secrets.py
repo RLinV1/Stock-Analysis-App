@@ -159,7 +159,7 @@ def test_real_looking_value_not_allowlisted():
 def test_redaction_never_contains_full_secret(secret):
     redacted = cs.redact(secret)
     assert secret not in redacted
-    assert len(redacted) <= 5
+    assert redacted == "redacted"
 
 
 def test_formatted_output_never_contains_secret():
@@ -180,8 +180,12 @@ def test_formatted_output_never_contains_secret():
             assert s not in out
 
 
-def test_short_value_redacts_to_ellipsis_only():
-    assert cs.redact("abcdefgh") == "…"
+def test_short_value_uses_constant_redaction():
+    assert cs.redact("abcdefgh") == "redacted"
+
+
+def test_redaction_never_includes_a_prefix():
+    assert cs.redact(GH_CLASSIC) == "redacted"
 
 
 # --------------------------------------------------------------------------

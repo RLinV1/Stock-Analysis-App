@@ -14,7 +14,7 @@
 ## 3. Follow-up, not performed here
 
 - [ ] 3.1 Decide the relocation question; OneDrive sync remains active on this tree (design.md records three options)
-- [ ] 3.2 Install pre-commit secret scanning before any public publication (`docs/SECURITY.md` requirement, unmet). 2026-10-13: a stdlib scanner `scripts/check_secrets.py` is being written (not run, hook not installed); a dedicated tool such as gitleaks is still needed before going public
+- [x] 3.2 Install and verify the repository-local staged-content secret hook after review; the local gate does not replace a dedicated publication scan or CI controls.
 - [x] 3.3 Update `docs/REPRODUCTION.md` so source identity cites a commit alongside the content fingerprint
 - [x] 3.4 Reconcile `reproduce-portfolio-learning` task status against actual source and test evidence (its own task 4.3)
 
@@ -28,3 +28,10 @@
 - [x] 5.2 Test clean, staged/unstaged source changes, untracked source, documentation-only edits, and missing Git/repository; verify run manifests retain revision metadata without claiming dirty source is retrievable from a commit alone.
 
 Scope: implement the existing source-revision spec against Claude's initialized repository. No history rewrite, global Git configuration, remote publication, relocation or OneDrive setting change. Source snapshots/full locks remain later work.
+
+## 6. Publication safeguards — 2026-10-14 continuation
+
+- [x] 6.1 Implement full-history scanning of all locally reachable/reflog objects, removed secrets, commit/tag text and sensitive filenames; reject shallow history and suppress token values and raw Git diagnostics.
+- [x] 6.2 Add and test a repository-owned staged-content pre-commit hook, including staged-versus-unstaged isolation, clean success, rejection, unavailable interpreter and scanner failures.
+- [x] 6.3 Run scanner unit/temporary-repository tests and local tracked/history scans; document exact evidence and remaining detector/publication limits.
+- [x] 6.4 Classify historical test-fixture findings without revealing values; add narrowly reviewed exact object/rule/line exclusions and an unfiltered audit mode, with regression coverage against exclusion reuse.

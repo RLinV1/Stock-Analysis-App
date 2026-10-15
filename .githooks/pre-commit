@@ -1,0 +1,16 @@
+#!/bin/sh
+# Repo-owned local gate. Activate with: git config --local core.hooksPath .githooks
+set -eu
+root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 2
+cd "$root"
+if [ -x .venv/Scripts/python.exe ]; then
+    exec .venv/Scripts/python.exe scripts/check_secrets.py --staged
+elif [ -x .venv/bin/python ]; then
+    exec .venv/bin/python scripts/check_secrets.py --staged
+elif command -v python3 >/dev/null 2>&1; then
+    exec python3 scripts/check_secrets.py --staged
+elif command -v python >/dev/null 2>&1; then
+    exec python scripts/check_secrets.py --staged
+fi
+echo 'check_secrets: Python interpreter unavailable; commit blocked.' >&2
+exit 2

@@ -10,6 +10,8 @@ optional pre-commit hook.
 python scripts/check_secrets.py              # same as --staged
 python scripts/check_secrets.py --staged     # staged content (what will be committed)
 python scripts/check_secrets.py --all        # every tracked file in the working tree
+python scripts/check_secrets.py --history    # local refs, HEAD and reflog history
+python scripts/check_secrets.py --history --no-history-allowlist # unfiltered audit
 python scripts/check_secrets.py path/ file   # explicit working-tree files or directories
 ```
 
@@ -17,13 +19,26 @@ python scripts/check_secrets.py path/ file   # explicit working-tree files or di
   and reads each staged blob with `git show :<path>`, so unstaged edits do not
   hide or add findings.
 - `--all` lists files with `git ls-files -z` and reads them from the working tree.
-- Explicit paths cannot be combined with `--staged` or `--all`.
+- `--history` scans unique objects reachable from all local refs, HEAD and
+  reflogs, with Git replacement objects disabled. It checks removed blobs,
+  commit/tag messages and sensitive tree-entry filenames. Shallow repositories
+  fail with exit 2: fetch/obtain complete history separately before scanning.
+  Unreachable objects absent from refs/HEAD/reflogs are outside this scan.
+- Default history mode excludes reviewed exact object/rule/line tuples in
+  `secret_scan_history_allowlist.json` and reports the exclusion count. The four
+  current entries are historical mobile authentication test fixtures; each
+  rationale names its test file without recording a value. Object IDs bind the
+  whole reviewed blob, so changed content, another line or another rule cannot
+  inherit the exclusion. `--no-history-allowlist` reports these findings too.
+- Explicit paths cannot be combined with `--staged`, `--all` or `--history`.
 
 Exit status: `0` no findings, `1` findings, `2` usage or Git error.
 
-Output is one line per finding, `path:line: rule [redacted]`. The redacted
-form is at most the first four characters plus an ellipsis; the matched value
-is never printed. Filename findings use line `0`.
+Output is one line per finding, `path:line: rule [redacted]`. Neither the matched value
+nor its prefix is printed. History labels use `git:<object-id>` (and a tree-entry
+number for filenames), so historical filenames cannot disclose tokens. Use
+object IDs to investigate privately; do not paste raw object contents into logs.
+Filename findings use line `0`. Raw Git diagnostics are suppressed on failure.
 
 ### Rules
 
@@ -54,22 +69,29 @@ inline comment.
 ### Skipped content
 
 - Paths with a `node_modules/`, `.venv/` or `.maven-repo/` component anywhere,
-  and paths under top-level `runs/` or `data/`.
+  build/cache paths and paths under top-level `runs/` or `data/` are skipped in
+  working-tree/staged modes. History deliberately scans objects from these paths
+  too, because force-added secrets remain a risk.
 - Binary files (a NUL byte in the first 8 KiB) and files larger than 2 MiB.
   Their filenames are still checked.
 
-### Optional pre-commit hook
+### Repository-local pre-commit hook
 
-Not installed by default. To opt in, create `.git/hooks/pre-commit` containing:
+The repo-owned hook is `.githooks/pre-commit`. After reviewing existing hook
+configuration (`git config --show-origin --get core.hooksPath` and the active
+hook directory), activate it for this clone only:
 
 ```sh
-#!/bin/sh
-exec python scripts/check_secrets.py --staged
+git config --local core.hooksPath .githooks
 ```
 
-On macOS/Linux also run `chmod +x .git/hooks/pre-commit`. Git for Windows runs
-the hook through its bundled shell, so `python` must be on that shell's `PATH`.
-Hooks are local to each clone and are not shared through the repository.
+On macOS/Linux also run `chmod +x .githooks/pre-commit` if the checkout did not
+preserve executable mode. Git for Windows runs the hook through its bundled
+shell. The hook prefers `.venv/Scripts/python.exe`, then `.venv/bin/python`,
+then `python3`/`python` on PATH. A missing interpreter or scanner failure blocks
+the commit. It checks index blobs, so unstaged edits cannot hide staged findings.
+The script is shared; activation is local to each clone. Git hooks can be
+bypassed and do not replace a publication scan or future CI controls.
 
 ### Tests
 
@@ -77,17 +99,21 @@ Hooks are local to each clone and are not shared through the repository.
 python -m pytest scripts/tests
 ```
 
-The tests call the scanning functions on strings and temporary files and do
-not need a Git repository. Fixture secrets are assembled from fragments at
-runtime so the test file does not trip the scanner.
+Tests cover pure functions and real temporary Git repositories, removed/reflog/
+other-ref content, messages, filename privacy, replacement objects, shallow
+history and real pre-commit rejection/success. They require Git; hook tests use
+Git for Windows' bundled shell or `sh`. Fixture secrets are assembled from
+fragments at runtime so test sources do not trip the scanner.
 
 ### Limits
 
 - This is a line-based regular-expression scanner. It misses secrets split
   across lines, encoded, compressed, inside binary files or in files over
   2 MiB, and formats it has no rule for. It can also raise false positives.
-- `--staged` and `--all` inspect only current content, not Git history. A
-  secret committed earlier and later removed is still in history.
+- `--staged` and `--all` inspect current content; run `--history` separately for
+  removed historical material. History mode retains the same binary/2 MiB
+  content limits and allowlist. An oversized tree fails rather than silently
+  skipping its filenames. No scan here classifies restricted/vendor data.
 - It is a cheap local gate, not a substitute for a dedicated scanner. Before
   the repository is made public, run `gitleaks` or `trufflehog` over the full
   history as well.

@@ -25,7 +25,11 @@ None.
 
 No numerical behavior changes. No dependency is installed, upgraded, or removed. No file outside `.gitignore` is modified, moved, or deleted. The Python package and its 17 passing tests are untouched.
 
-Pre-commit secret scanning is **not** introduced by this change and remains an unmet requirement in `docs/SECURITY.md` before any public publication.
+The initial implementation excluded pre-commit scanning. The 2026-10-14 continuation adds a repository-owned staged-content hook and stdlib full-history scan as local safeguards. A dedicated publication scanner, CI controls, restricted-data review and licensing remain publication prerequisites.
+
+## Publication safeguards continuation — 2026-10-14
+
+Extend the existing scanner with an explicit history mode covering objects reachable from every local reference, HEAD and reflogs, including removed content, commit/tag messages and sensitive historical filenames. Reject shallow repositories rather than imply a full scan. Output must contain identifiers, rules and line numbers, never matched values or Git diagnostics. Preserve staged mode as the default and the existing detector/allowlist/size/binary limitations. Provide and test a repo-local pre-commit hook; installation is a separate local configuration step after review. No remote, history rewrite, publication, relocation or service startup is included.
 
 ## Verification performed before proposing
 
