@@ -9,6 +9,7 @@ import dataclasses
 import json
 import os
 import threading
+import time
 import uuid
 from pathlib import Path
 
@@ -420,3 +421,111 @@ def test_invalid_reclaimed_request_closes_prior_attempt(db, store):
     assert attempt["id"] == first.attempt_id
     assert attempt["finished_at"] is not None
     assert attempt["failure_code"] == "invalid_request"
+
+
+@pytest.mark.parametrize("method,cancel", [
+    ("cancel_owned", True), ("fail_owned", False),
+    ("release_owned", False), ("release_owned", True),
+    ("publish", False), ("heartbeat", False),
+])
+def test_expired_owner_cannot_mutate_run_or_attempt(db, store, method, cancel):
+    run_id = insert_run(db)
+    claimed = store.claim()
+    if cancel:
+        request_cancel(db, run_id)
+    expire_lease(db, run_id)
+    before_run, before_attempts = run_row(db, run_id), attempts(db, run_id)
+    arguments = (claimed, "runs/key", MANIFEST_SHA256) if method == "publish" else (claimed,)
+    getattr(store, method)(*arguments)
+    assert run_row(db, run_id) == before_run
+    assert attempts(db, run_id) == before_attempts
+
+
+@pytest.mark.parametrize("method", ["cancel_owned", "fail_owned", "release_owned",
+                                    "heartbeat", "publish"])
+def test_missing_attempt_rolls_back_owned_transition(db, store, method):
+    run_id = insert_run(db)
+    claimed = store.claim()
+    if method == "cancel_owned":
+        request_cancel(db, run_id)
+    db.execute("DELETE FROM run_attempt WHERE id=%s", (claimed.attempt_id,))
+    before_run = run_row(db, run_id)
+    with pytest.raises(RuntimeError, match="Attempt ownership disappeared"):
+        arguments = (claimed, "key", MANIFEST_SHA256) if method == "publish" else (claimed,)
+        getattr(store, method)(*arguments)
+    assert run_row(db, run_id) == before_run
+
+
+@pytest.mark.parametrize("cancel", [False, True])
+def test_checkpoint_registration_requires_token_and_unexpired_lease(db, store, cancel):
+    run_id = insert_run(db)
+    claimed = store.claim()
+    if cancel:
+        request_cancel(db, run_id)
+    stale = dataclasses.replace(claimed, token=uuid.uuid4())
+    assert not store.register_checkpoint(stale, "key", MANIFEST_SHA256)
+    assert store.register_checkpoint(claimed, "key", MANIFEST_SHA256)
+    assert db.execute("SELECT checkpoint_key, checkpoint_sha256 FROM run_attempt WHERE id=%s",
+                      (claimed.attempt_id,)).fetchone() == ("key", MANIFEST_SHA256)
+    expire_lease(db, run_id)
+    assert not store.register_checkpoint(claimed, "new-key", "b" * 64)
+    assert db.execute("SELECT checkpoint_key, checkpoint_sha256 FROM run_attempt WHERE id=%s",
+                      (claimed.attempt_id,)).fetchone() == ("key", MANIFEST_SHA256)
+
+
+@pytest.mark.parametrize("method,cancel", [
+    ("register_checkpoint", False), ("register_checkpoint", True),
+    ("heartbeat", False), ("publish", False), ("fail_owned", False),
+    ("cancel_owned", True), ("release_owned", False), ("release_owned", True),
+])
+def test_owned_lease_is_rechecked_after_run_lock_wait(db, store, monkeypatch,
+                                                   method, cancel):
+    run_id = insert_run(db)
+    claimed = store.claim()
+    if cancel:
+        request_cancel(db, run_id)
+    backend_pid, result, errors = [], [], []
+    connect = store._connect
+
+    def observed_connect():
+        connection = connect()
+        backend_pid.append(connection.info.backend_pid)
+        return connection
+
+    monkeypatch.setattr(store, "_connect", observed_connect)
+
+    def mutate():
+        try:
+            arguments = ((claimed, "key", MANIFEST_SHA256)
+                         if method in {"register_checkpoint", "publish"} else (claimed,))
+            result.append(getattr(store, method)(*arguments))
+        except Exception as exc:
+            errors.append(exc)
+
+    db.execute("UPDATE experiment_run SET lease_expires_at=clock_timestamp() + "
+               "INTERVAL '500 milliseconds' WHERE id=%s", (run_id,))
+    before_run, before_attempts = run_row(db, run_id), attempts(db, run_id)
+    thread = threading.Thread(target=mutate)
+    with psycopg.connect(store.dsn) as locker:
+        locker.execute("SELECT id FROM experiment_run WHERE id=%s FOR UPDATE", (run_id,))
+        thread.start()
+        deadline = time.monotonic() + 1.5
+        blocked = False
+        while time.monotonic() < deadline:
+            if backend_pid:
+                row = db.execute("SELECT wait_event_type FROM pg_stat_activity WHERE pid=%s",
+                                 (backend_pid[0],)).fetchone()
+                if row and row[0] == "Lock":
+                    blocked = True
+                    break
+            time.sleep(0.01)
+        # Wait past the lease while the row lock remains held.
+        db.execute("SELECT pg_sleep(0.6)")
+    thread.join(timeout=5)
+    assert blocked, "mutation did not reach the competing run-row lock"
+    assert not thread.is_alive() and errors == []
+    assert result == [None if method == "fail_owned" else False]
+    assert run_row(db, run_id) == before_run
+    assert attempts(db, run_id) == before_attempts
+    assert db.execute("SELECT checkpoint_key FROM run_attempt WHERE id=%s",
+                      (claimed.attempt_id,)).fetchone() == (None,)

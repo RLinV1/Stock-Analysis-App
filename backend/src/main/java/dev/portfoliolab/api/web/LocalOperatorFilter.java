@@ -9,11 +9,13 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /** Single-operator local credential until a broader identity design is approved. */
 @Component
+@Order(BrowserCorsConfiguration.AUTH_FILTER_ORDER)
 public final class LocalOperatorFilter extends OncePerRequestFilter {
     private final byte[] expected;
 

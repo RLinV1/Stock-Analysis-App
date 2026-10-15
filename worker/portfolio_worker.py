@@ -9,12 +9,15 @@ import signal
 import socket
 import tempfile
 import threading
+import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from portfolio_lab.service_contract import RunStopped, execute_synthetic_request, validate_request
+from training_process import (CANCEL_GRACE_SECONDS, HARD_DEADLINE_SECONDS, TrainingDeadline,
+                              TrainingStopped, execute_supervised)
 
 
 LEASE_SECONDS = 60
@@ -30,6 +33,27 @@ class Claimed:
     attempt_id: uuid.UUID
     token: uuid.UUID
     request: dict
+    claimed_monotonic: float = field(default_factory=time.monotonic, compare=False)
+
+
+class LeaseSignal:
+    """Stop compute before the last confirmed lease, even if DB IO hangs."""
+    def __init__(self, claimed_at: float):
+        self.event = threading.Event()
+        self.confirmed(claimed_at)
+
+    def confirmed(self, request_started: float) -> None:
+        # Start timing before the DB request, not after an arbitrarily slow reply.
+        # Leave enough time for cooperative grace plus process termination.
+        self.stop_at = request_started + LEASE_SECONDS - CANCEL_GRACE_SECONDS - 5
+
+    def set(self) -> None:
+        self.event.set()
+
+    def is_set(self) -> bool:
+        if time.monotonic() >= self.stop_at:
+            self.event.set()
+        return self.event.is_set()
 
 
 class JobStore:
@@ -39,9 +63,22 @@ class JobStore:
 
     def _connect(self):
         import psycopg
-        return psycopg.connect(self.dsn, autocommit=True)
+        from psycopg.conninfo import conninfo_to_dict
+        options = conninfo_to_dict(self.dsn).get("options", "")
+        return psycopg.connect(self.dsn, autocommit=True, connect_timeout=5,
+                               options=options + " -cstatement_timeout=5000 -clock_timeout=2000")
+
+    @staticmethod
+    def _lock_owned_run(cur, job: Claimed) -> bool:
+        # Acquire the row first; UPDATE then evaluates the fresh database clock
+        # without a preceding competing-row lock wait that could cross expiry.
+        cur.execute("""
+            SELECT id FROM experiment_run WHERE id=%s AND current_token=%s FOR UPDATE
+        """, (job.run_id, job.token))
+        return cur.rowcount == 1
 
     def claim(self) -> Claimed | None:
+        claimed_at = time.monotonic()
         with self._connect() as conn, conn.transaction():
             with conn.cursor() as cur:
                 # Sweeps end abandoned runs and close their last attempt in the same
@@ -113,16 +150,18 @@ class JobStore:
                                              worker_id, lease_expires_at)
                     VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP + INTERVAL '60 seconds')
                 """, (attempt_id, run_id, prior_attempts + 1, token, self.worker_id))
-                return Claimed(run_id, attempt_id, token, request)
+                return Claimed(run_id, attempt_id, token, request, claimed_at)
 
     def heartbeat(self, job: Claimed) -> bool:
         with self._connect() as conn, conn.transaction():
             with conn.cursor() as cur:
+                if not self._lock_owned_run(cur, job):
+                    return False
                 cur.execute("""
                     UPDATE experiment_run SET lease_expires_at=CURRENT_TIMESTAMP + INTERVAL '60 seconds',
                         updated_at=CURRENT_TIMESTAMP
                     WHERE id=%s AND current_token=%s AND state='RUNNING'
-                      AND lease_expires_at > CURRENT_TIMESTAMP
+                      AND lease_expires_at > clock_timestamp()
                 """, (job.run_id, job.token))
                 if cur.rowcount != 1:
                     return False
@@ -138,10 +177,13 @@ class JobStore:
     def cancel_owned(self, job: Claimed) -> bool:
         with self._connect() as conn, conn.transaction():
             with conn.cursor() as cur:
+                if not self._lock_owned_run(cur, job):
+                    return False
                 cur.execute("""
                     UPDATE experiment_run SET state='CANCELLED', current_token=NULL,
                         lease_expires_at=NULL, updated_at=CURRENT_TIMESTAMP
                     WHERE id=%s AND current_token=%s AND state='CANCEL_REQUESTED'
+                      AND lease_expires_at > clock_timestamp()
                 """, (job.run_id, job.token))
                 if cur.rowcount != 1:
                     return False
@@ -149,17 +191,21 @@ class JobStore:
                     UPDATE run_attempt SET finished_at=CURRENT_TIMESTAMP,
                         failure_code='cancelled' WHERE id=%s AND fencing_token=%s
                 """, (job.attempt_id, job.token))
+                if cur.rowcount != 1:
+                    raise RuntimeError("Attempt ownership disappeared")
                 return True
 
     def publish(self, job: Claimed, manifest_key: str, manifest_sha256: str) -> bool:
         with self._connect() as conn, conn.transaction():
             with conn.cursor() as cur:
+                if not self._lock_owned_run(cur, job):
+                    return False
                 cur.execute("""
                     UPDATE experiment_run SET state='COMPLETE', manifest_key=%s,
                         manifest_sha256=%s, current_token=NULL, lease_expires_at=NULL,
                         updated_at=CURRENT_TIMESTAMP
                     WHERE id=%s AND current_token=%s AND state='RUNNING'
-                      AND lease_expires_at > CURRENT_TIMESTAMP
+                      AND lease_expires_at > clock_timestamp()
                 """, (manifest_key, manifest_sha256, job.run_id, job.token))
                 if cur.rowcount != 1:
                     return False
@@ -174,12 +220,15 @@ class JobStore:
     def fail_owned(self, job: Claimed) -> None:
         with self._connect() as conn, conn.transaction():
             with conn.cursor() as cur:
+                if not self._lock_owned_run(cur, job):
+                    return
                 cur.execute("""
                     UPDATE experiment_run SET state=CASE WHEN attempt_count >= %s
                         THEN 'FAILED' ELSE 'QUEUED' END,
                         current_token=NULL, lease_expires_at=NULL,
                         error_code='worker_failure', updated_at=CURRENT_TIMESTAMP
                     WHERE id=%s AND current_token=%s AND state='RUNNING'
+                      AND lease_expires_at > clock_timestamp()
                 """, (MAX_ATTEMPTS, job.run_id, job.token))
                 if cur.rowcount == 1:
                     cur.execute("""
@@ -187,6 +236,8 @@ class JobStore:
                             failure_code='worker_failure'
                         WHERE id=%s AND fencing_token=%s
                     """, (job.attempt_id, job.token))
+                    if cur.rowcount != 1:
+                        raise RuntimeError("Attempt ownership disappeared")
 
     def release_owned(self, job: Claimed) -> bool:
         """Return an owned run to the queue on worker shutdown.
@@ -196,6 +247,8 @@ class JobStore:
         """
         with self._connect() as conn, conn.transaction():
             with conn.cursor() as cur:
+                if not self._lock_owned_run(cur, job):
+                    return False
                 cur.execute("""
                     UPDATE experiment_run SET state=CASE WHEN attempt_count >= %s
                         THEN 'FAILED' ELSE 'QUEUED' END,
@@ -204,6 +257,7 @@ class JobStore:
                         THEN 'attempts_exhausted' ELSE NULL END,
                         updated_at=CURRENT_TIMESTAMP
                     WHERE id=%s AND current_token=%s AND state='RUNNING'
+                      AND lease_expires_at > clock_timestamp()
                 """, (MAX_ATTEMPTS, MAX_ATTEMPTS, job.run_id, job.token))
                 failure_code = "worker_shutdown"
                 if cur.rowcount != 1:
@@ -211,6 +265,7 @@ class JobStore:
                         UPDATE experiment_run SET state='CANCELLED', current_token=NULL,
                             lease_expires_at=NULL, updated_at=CURRENT_TIMESTAMP
                         WHERE id=%s AND current_token=%s AND state='CANCEL_REQUESTED'
+                          AND lease_expires_at > clock_timestamp()
                     """, (job.run_id, job.token))
                     if cur.rowcount != 1:
                         return False
@@ -219,14 +274,58 @@ class JobStore:
                     UPDATE run_attempt SET finished_at=CURRENT_TIMESTAMP, failure_code=%s
                     WHERE id=%s AND fencing_token=%s
                 """, (failure_code, job.attempt_id, job.token))
+                if cur.rowcount != 1:
+                    raise RuntimeError("Attempt ownership disappeared")
                 return True
 
+    def register_checkpoint(self, job: Claimed, key: str, digest: str) -> bool:
+        with self._connect() as conn, conn.transaction():
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id FROM experiment_run
+                    WHERE id=%s AND current_token=%s
+                      AND state IN ('RUNNING', 'CANCEL_REQUESTED') FOR UPDATE
+                """, (job.run_id, job.token))
+                if cur.rowcount != 1:
+                    return False
+                # Recheck database time after acquiring the run lock. A lease
+                # valid before a lock wait may have expired during that wait.
+                cur.execute("""
+                    UPDATE run_attempt SET checkpoint_key=%s, checkpoint_sha256=%s
+                    WHERE id=%s AND fencing_token=%s AND finished_at IS NULL
+                      AND run_id=%s AND EXISTS (
+                          SELECT 1 FROM experiment_run WHERE id=%s AND current_token=%s
+                            AND state IN ('RUNNING', 'CANCEL_REQUESTED')
+                            AND lease_expires_at > clock_timestamp())
+                """, (key, digest, job.attempt_id, job.token,
+                      job.run_id, job.run_id, job.token))
+                return cur.rowcount == 1
 
-def upload_artifacts(s3: Any, bucket: str, job: Claimed, run_dir: Path) -> tuple[str, str]:
+
+def retain_checkpoint(store: JobStore, s3: Any, bucket: str,
+                      job: Claimed, root: Path) -> bool:
+    """Called only after the child is reaped; no checkpoint is read mid-write."""
+    checkpoints = list(root.glob("*/checkpoint.pt"))
+    if len(checkpoints) != 1:
+        return False
+    content = checkpoints[0].read_bytes()
+    digest = hashlib.sha256(content).hexdigest()
+    key = f"runs/{job.run_id}/attempts/{job.attempt_id}/checkpoints/{digest}.pt"
+    s3.put_object(Bucket=bucket, Key=key, Body=content, IfNoneMatch="*")
+    returned = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+    if hashlib.sha256(returned).hexdigest() != digest:
+        raise ValueError("Checkpoint readback hash mismatch")
+    return store.register_checkpoint(job, key, digest)
+
+
+def upload_artifacts(s3: Any, bucket: str, job: Claimed, run_dir: Path,
+                     should_stop=None) -> tuple[str, str]:
     """Verify uploaded bytes by readback; return attempt-scoped index key/hash."""
     prefix = f"runs/{job.run_id}/attempts/{job.attempt_id}"
     files = []
     for path in sorted(run_dir.rglob("*")):
+        if should_stop is not None and should_stop():
+            raise TrainingStopped(run_dir)
         if not path.is_file() or path.name == ".run.lock":
             continue
         relative = path.relative_to(run_dir).as_posix()
@@ -246,6 +345,8 @@ def upload_artifacts(s3: Any, bucket: str, job: Claimed, run_dir: Path) -> tuple
                          allow_nan=False).encode("utf-8")
     key = f"{prefix}/artifact-index.json"
     digest = hashlib.sha256(content).hexdigest()
+    if should_stop is not None and should_stop():
+        raise TrainingStopped(run_dir)
     s3.put_object(Bucket=bucket, Key=key, Body=content)
     returned = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
     if hashlib.sha256(returned).hexdigest() != digest:
@@ -261,18 +362,21 @@ def run_one(store: JobStore, s3: Any, bucket: str, job: Claimed,
     uploading and publishing are cheaper than a rerun, so a stop that arrives
     during training still publishes; Compose's stop grace period covers that.
 
-    Losing ownership does interrupt training: when a heartbeat finds the run no
-    longer RUNNING under this token (for example CANCEL_REQUESTED), training
-    stops at the next epoch boundary and the run is cancelled if still owned.
+    Losing ownership requests an epoch-boundary stop. A separate supervisor
+    terminates unresponsive compute within five seconds, and enforces a two-hour
+    hard compute deadline independently of training cooperation.
     """
-    finished, lost = threading.Event(), threading.Event()
+    finished, lost = threading.Event(), LeaseSignal(job.claimed_monotonic)
+    deadline = job.claimed_monotonic + HARD_DEADLINE_SECONDS
 
     def keep_lease() -> None:
         while not finished.wait(HEARTBEAT_SECONDS):
             try:
+                started = time.monotonic()
                 if not store.heartbeat(job):
                     lost.set()
                     return
+                lost.confirmed(started)
             except Exception:
                 lost.set()
                 return
@@ -285,19 +389,49 @@ def run_one(store: JobStore, s3: Any, bucket: str, job: Claimed,
             return
         with tempfile.TemporaryDirectory(prefix="portfolio-worker-") as temporary:
             try:
-                run_dir = execute_synthetic_request(job.request, Path(temporary),
-                                                    should_stop=lost.is_set)
-            except RunStopped:
+                run_dir = execute_supervised(job.request, Path(temporary), lost,
+                                             deadline=deadline)
+            except (RunStopped, TrainingStopped):
                 # Only `lost` stops training. cancel_owned succeeds only for our
                 # CANCEL_REQUESTED run; False means another owner took over.
-                store.cancel_owned(job)
+                try:
+                    retain_checkpoint(store, s3, bucket, job, Path(temporary))
+                finally:
+                    store.cancel_owned(job)
                 return
+            except TrainingDeadline:
+                retain_checkpoint(store, s3, bucket, job, Path(temporary))
+                raise
             if lost.is_set():
-                store.cancel_owned(job)
+                try:
+                    retain_checkpoint(store, s3, bucket, job, Path(temporary))
+                finally:
+                    store.cancel_owned(job)
                 return
-            key, digest = upload_artifacts(s3, bucket, job, run_dir)
+
+            def cannot_publish() -> bool:
+                if time.monotonic() >= deadline:
+                    raise TrainingDeadline("Attempt compute deadline exceeded")
+                return lost.is_set()
+
+            try:
+                key, digest = upload_artifacts(s3, bucket, job, run_dir,
+                                               should_stop=cannot_publish)
+                if time.monotonic() >= deadline:
+                    raise TrainingDeadline("Attempt compute deadline exceeded")
+            except TrainingStopped:
+                try:
+                    retain_checkpoint(store, s3, bucket, job, Path(temporary))
+                finally:
+                    store.cancel_owned(job)
+                return
+            except TrainingDeadline:
+                retain_checkpoint(store, s3, bucket, job, Path(temporary))
+                raise
             if not store.publish(job, key, digest):
                 store.cancel_owned(job)
+    except TrainingStopped:
+        store.cancel_owned(job)
     except Exception:
         store.fail_owned(job)
         raise
@@ -321,8 +455,8 @@ def main() -> None:
     store = JobStore(dsn, worker_id)
     s3 = boto3.client("s3", endpoint_url=endpoint, region_name="us-east-1",
                       config=Config(s3={"addressing_style": "path"}))
-    # Docker stop sends SIGTERM; never claim new work after it, and release an
-    # owned job instead of publishing it (see run_one).
+    # Docker stop sends SIGTERM; never claim new work after it. Release work
+    # that has not started; already-started work follows run_one's deadline.
     signal.signal(signal.SIGTERM, lambda signum, frame: STOP.set())
     signal.signal(signal.SIGINT, lambda signum, frame: STOP.set())
     while not STOP.is_set():

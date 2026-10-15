@@ -12,12 +12,24 @@ import portfolio_worker
 from portfolio_worker import Claimed, JobStore, run_one, upload_artifacts
 
 
+@pytest.fixture(autouse=True)
+def local_training_stand_in(monkeypatch):
+    # Lifecycle tests control execution in process. Separate subprocess tests
+    # exercise the real supervision boundary, including unresponsive children.
+    monkeypatch.setattr(portfolio_worker, "execute_supervised",
+                        lambda request, root, lost, **kwargs:
+                        portfolio_worker.execute_synthetic_request(
+                            request, root, should_stop=lost.is_set))
+
+
 class FakeS3:
     def __init__(self):
         self.objects = {}
         self.corrupt = False
 
-    def put_object(self, *, Bucket, Key, Body):
+    def put_object(self, *, Bucket, Key, Body, **kwargs):
+        if kwargs.get("IfNoneMatch") == "*":
+            assert (Bucket, Key) not in self.objects, "immutable object overwritten"
         self.objects[(Bucket, Key)] = Body
 
     def get_object(self, *, Bucket, Key):
@@ -296,7 +308,7 @@ class RowcountCursor(FakeCursor):
 
     def execute(self, sql, params=None):
         super().execute(sql, params)
-        self.rowcount = self.rowcounts.pop(0)
+        self.rowcount = 1 if sql.lstrip().startswith("SELECT") else self.rowcounts.pop(0)
 
 
 def test_release_owned_requeues_running_attempt_as_worker_shutdown(monkeypatch):
@@ -305,7 +317,7 @@ def test_release_owned_requeues_running_attempt_as_worker_shutdown(monkeypatch):
     monkeypatch.setattr(store, "_connect", lambda: FakeConnection(cursor))
     claimed = job()
     assert store.release_owned(claimed) is True
-    (run_sql, run_params), (attempt_sql, attempt_params) = cursor.statements
+    (run_sql, run_params), (attempt_sql, attempt_params) = cursor.statements[1:]
     assert run_sql.startswith("UPDATE experiment_run")
     assert "WHERE id=%s AND current_token=%s AND state='RUNNING'" in run_sql
     assert "ELSE 'QUEUED' END" in run_sql and "current_token=NULL" in run_sql
@@ -323,11 +335,11 @@ def test_release_owned_finishes_requested_cancel_as_cancelled(monkeypatch):
     monkeypatch.setattr(store, "_connect", lambda: FakeConnection(cursor))
     claimed = job()
     assert store.release_owned(claimed) is True
-    cancel_sql, cancel_params = cursor.statements[1]
+    cancel_sql, cancel_params = cursor.statements[2]
     assert "state='CANCELLED'" in cancel_sql
     assert "WHERE id=%s AND current_token=%s AND state='CANCEL_REQUESTED'" in cancel_sql
     assert cancel_params == (claimed.run_id, claimed.token)
-    assert cursor.statements[2][1] == ("cancelled", claimed.attempt_id, claimed.token)
+    assert cursor.statements[3][1] == ("cancelled", claimed.attempt_id, claimed.token)
 
 
 def test_release_owned_leaves_unowned_run_untouched(monkeypatch):
@@ -336,6 +348,36 @@ def test_release_owned_leaves_unowned_run_untouched(monkeypatch):
     monkeypatch.setattr(store, "_connect", lambda: FakeConnection(cursor))
     assert store.release_owned(job()) is False
     assert not any("run_attempt" in sql for sql, _ in cursor.statements)
+
+
+@pytest.mark.parametrize("method,rowcounts", [
+    ("cancel_owned", [0]), ("fail_owned", [0]), ("release_owned", [0, 0]),
+    ("heartbeat", [0]), ("publish", [0]),
+])
+def test_owned_end_transitions_require_unexpired_lease(monkeypatch, method, rowcounts):
+    cursor = RowcountCursor(rowcounts)
+    store = JobStore("dbname=unused", "worker-test")
+    monkeypatch.setattr(store, "_connect", lambda: FakeConnection(cursor))
+    arguments = (job(), "key", "a" * 64) if method == "publish" else (job(),)
+    getattr(store, method)(*arguments)
+    assert cursor.statements
+    assert "FOR UPDATE" in cursor.statements[0][0]
+    for sql, _ in cursor.statements:
+        assert "current_token=%s" in sql
+        if sql.startswith("UPDATE"):
+            assert "lease_expires_at > clock_timestamp()" in sql
+    assert not any("UPDATE run_attempt" in sql for sql, _ in cursor.statements)
+
+
+@pytest.mark.parametrize("method", ["cancel_owned", "fail_owned", "release_owned",
+                                    "heartbeat", "publish"])
+def test_owned_end_transition_rejects_missing_attempt(monkeypatch, method):
+    cursor = RowcountCursor([1, 0])
+    store = JobStore("dbname=unused", "worker-test")
+    monkeypatch.setattr(store, "_connect", lambda: FakeConnection(cursor))
+    with pytest.raises(RuntimeError, match="Attempt ownership disappeared"):
+        arguments = (job(), "key", "a" * 64) if method == "publish" else (job(),)
+        getattr(store, method)(*arguments)
 
 
 def stop_when_lost(request, root, *, should_stop):
@@ -402,3 +444,110 @@ def test_run_one_worker_stop_during_training_is_not_a_training_stop(monkeypatch)
     run_one(store, s3, "lab-artifacts", job(), stop=stop)
     assert seen == [False]
     assert store.calls == ["publish"]
+
+
+def test_lease_watchdog_stops_before_last_confirmed_lease(monkeypatch):
+    monkeypatch.setattr(portfolio_worker.time, "monotonic", lambda: 100.0)
+    signal = portfolio_worker.LeaseSignal(100.0)
+    assert not signal.is_set()
+    monkeypatch.setattr(portfolio_worker.time, "monotonic", lambda: 151.0)
+    assert signal.is_set()
+
+
+def test_late_heartbeat_reply_does_not_extend_lease_from_reply_time(monkeypatch):
+    signal = portfolio_worker.LeaseSignal(100.0)
+    signal.confirmed(110.0)
+    monkeypatch.setattr(portfolio_worker.time, "monotonic", lambda: 161.0)
+    assert signal.is_set()
+
+
+def test_stopped_checkpoint_is_immutable_verified_and_registered(tmp_path):
+    (tmp_path / "run").mkdir()
+    (tmp_path / "run/checkpoint.pt").write_bytes(b"completed epoch checkpoint")
+    calls = []
+
+    class Store:
+        def register_checkpoint(self, claimed, key, digest):
+            calls.append((key, digest))
+            return True
+
+    s3 = FakeS3()
+    assert portfolio_worker.retain_checkpoint(Store(), s3, "bucket", job(), tmp_path)
+    [(key, digest)] = calls
+    assert f"/attempts/{job().attempt_id}/checkpoints/" in key
+    assert digest == hashlib.sha256(b"completed epoch checkpoint").hexdigest()
+    assert key.endswith(f"/{digest}.pt")
+
+
+def test_corrupt_checkpoint_is_not_registered(tmp_path):
+    (tmp_path / "run").mkdir()
+    (tmp_path / "run/checkpoint.pt").write_bytes(b"checkpoint")
+    s3 = FakeS3()
+    s3.corrupt = True
+    with pytest.raises(ValueError, match="Checkpoint readback hash mismatch"):
+        portfolio_worker.retain_checkpoint(object(), s3, "bucket", job(), tmp_path)
+
+
+def test_register_checkpoint_checks_run_and_attempt_ownership(monkeypatch):
+    cursor = RowcountCursor([0])
+    store = JobStore("dbname=unused", "worker-test")
+    monkeypatch.setattr(store, "_connect", lambda: FakeConnection(cursor))
+    assert not store.register_checkpoint(job(), "key", "a" * 64)
+    [(lock_sql, lock_params), (sql, params)] = cursor.statements
+    assert "current_token=%s" in sql and "lease_expires_at > clock_timestamp()" in sql
+    assert "FOR UPDATE" in lock_sql and lock_params == (job().run_id, job().token)
+    assert "finished_at IS NULL" in sql
+    assert params == ("key", "a" * 64, job().attempt_id, job().token,
+                      job().run_id, job().run_id, job().token)
+
+
+class CheckpointStore(RecordingStore):
+    def register_checkpoint(self, claimed, key, digest):
+        self.calls.append("register_checkpoint")
+        return True
+
+
+def checkpoint_execute(request, root, **kwargs):
+    path = fake_execute(request, root)
+    (path / "checkpoint.pt").write_bytes(b"completed checkpoint")
+    return path
+
+
+def test_cancel_during_publication_retains_checkpoint_before_cleanup(monkeypatch):
+    monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", checkpoint_execute)
+
+    def stopped_upload(*args, **kwargs):
+        raise portfolio_worker.TrainingStopped(None)
+
+    monkeypatch.setattr(portfolio_worker, "upload_artifacts", stopped_upload)
+    store, s3 = CheckpointStore(), FakeS3()
+    run_one(store, s3, "bucket", job())
+    assert store.calls == ["register_checkpoint", "cancel_owned"]
+    assert len(s3.objects) == 1
+    assert not any(key.endswith("artifact-index.json") for _, key in s3.objects)
+
+
+def test_hard_deadline_retains_checkpoint_and_fails_without_publishing(monkeypatch):
+    def deadline(request, root, lost, **kwargs):
+        checkpoint_execute(request, root)
+        raise portfolio_worker.TrainingDeadline()
+
+    monkeypatch.setattr(portfolio_worker, "execute_supervised", deadline)
+    store, s3 = CheckpointStore(), FakeS3()
+    with pytest.raises(portfolio_worker.TrainingDeadline):
+        run_one(store, s3, "bucket", job())
+    assert store.calls == ["register_checkpoint", "fail_owned"]
+    assert not any(key.endswith("artifact-index.json") for _, key in s3.objects)
+
+
+def test_database_budgets_preserve_dsn_search_path(monkeypatch):
+    import psycopg
+
+    calls = []
+    monkeypatch.setattr(psycopg, "connect", lambda *args, **kwargs: calls.append(kwargs))
+    JobStore("dbname=unused options='-csearch_path=isolated_test'", "test")._connect()
+    [arguments] = calls
+    assert arguments["connect_timeout"] == 5
+    assert "-csearch_path=isolated_test" in arguments["options"]
+    assert "-cstatement_timeout=5000" in arguments["options"]
+    assert "-clock_timeout=2000" in arguments["options"]

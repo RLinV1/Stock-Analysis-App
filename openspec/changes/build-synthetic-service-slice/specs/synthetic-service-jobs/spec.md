@@ -1,5 +1,20 @@
 ## ADDED Requirements
 
+### Requirement: Allow explicitly configured browser origins
+The API SHALL disable cross-origin browser access by default. An explicit comma-separated exact HTTP(S) origin allowlist SHALL enable CORS only for canonical `/api/v1/**` paths, GET/POST methods and Authorization/Content-Type/Idempotency-Key request headers. Invalid or wildcard origin configuration SHALL fail startup. A valid preflight MAY complete without bearer authentication; actual API requests SHALL still require the operator bearer credential. CORS SHALL NOT make path-parameter or malformed path variants public or enable browser cookie credentials.
+
+#### Scenario: Browser preflights an authorized submission
+- **WHEN** a configured origin preflights POST on a canonical API path with only approved request headers
+- **THEN** the API returns the exact allowed origin and preflight permission without requiring a bearer credential
+
+#### Scenario: Allowed browser omits the credential
+- **WHEN** a configured origin sends an actual API request without the bearer credential
+- **THEN** the API returns 401 with the CORS origin response header and performs no repository access
+
+#### Scenario: Reject unintended cross-origin access
+- **WHEN** an origin, method, request header or raw path is outside the explicit policy, or no origins are configured
+- **THEN** no cross-origin API permission is granted
+
 ### Requirement: Accept bounded authenticated synthetic jobs
 The API SHALL accept only the versioned synthetic request contract with a configured operator credential, bounded body and Idempotency-Key. Every route except the exact minimal health path SHALL require that credential, including path-parameter or otherwise non-canonical spellings of API routes. It SHALL persist a new job and canonical request hash atomically. Same key and request SHALL return the existing job; same key and different request SHALL return a conflict.
 
@@ -13,6 +28,30 @@ The API SHALL accept only the versioned synthetic request contract with a config
 
 ### Requirement: Execute and publish only owned attempts
 The worker SHALL claim queued or expired work using a lease and unique fencing token, execute at most one job concurrently, upload attempt-scoped artifacts with hashes, and publish completion only while its token owns the uncancelled run.
+
+All owned state-changing writes SHALL require the matching current token and an unexpired database-time lease. An expired owner SHALL NOT renew, cancel, fail, release or publish its attempt; expiry recovery belongs to the claim transaction. An owned terminal transition SHALL roll back if its attempt row cannot be closed.
+
+#### Scenario: Expired owner tries to end its attempt
+- **WHEN** a worker retains the current token after its lease has expired and tries cancellation acknowledgement, failure or shutdown release
+- **THEN** the run and attempt remain unchanged until the recovery sweep or a new claim handles them
+
+### Requirement: Supervise bounded training independently
+The worker SHALL execute training in a child process while its parent renews ownership and observes cancellation. The parent SHALL request cooperative stopping and terminate an unresponsive child within 30 seconds of observing lost ownership or cancellation. A two-hour monotonic attempt compute deadline SHALL terminate the child without requiring training cooperation. Loss of database access SHALL stop compute before the last confirmed lease expires. Every child SHALL be reaped before the worker moves to another attempt.
+
+#### Scenario: Training ignores cancellation
+- **WHEN** training does not respond to the parent's cooperative stop request
+- **THEN** the parent terminates and reaps the child within the cancellation bound and publishes no completed artifacts
+
+#### Scenario: Training ignores its time budget
+- **WHEN** the attempt reaches its hard compute deadline
+- **THEN** the parent terminates the child independently of epoch progress and cannot publish COMPLETE
+
+### Requirement: Fence retained stopped checkpoints
+After stopping and reaping training, the worker SHALL retain any available completed-epoch checkpoint as an immutable attempt-specific object, verify its readback SHA-256, and register the key/hash only while the matching run token and database lease remain valid. Lost ownership SHALL prevent checkpoint registration. This checkpoint registration SHALL NOT imply that durable service resume is implemented.
+
+#### Scenario: Stop after a completed epoch
+- **WHEN** a stopped child left a completed-epoch checkpoint and the parent still owns the cancellation-requested run under a valid lease
+- **THEN** the parent registers the verified immutable checkpoint before acknowledging cancellation
 
 #### Scenario: Worker dies after upload
 - **WHEN** a worker uploads artifacts but dies before a conditional completion update
