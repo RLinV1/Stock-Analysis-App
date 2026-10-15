@@ -41,3 +41,10 @@
 ## Application startup migration correction — 2026-10-15
 
 - [x] Replace bare liquibase-core with the Boot 4 Liquibase starter; verify automatic migration and reopening through the actual application context against fresh PostgreSQL, then rerun the bounded browser smoke.
+
+## Independent image verification — 2026-10-15
+
+- [x] Exclude local credentials/account/agent directories from Docker contexts and verify the exported context omits them while retaining build inputs.
+- [x] Build the existing backend and CPU worker Dockerfiles; repair packaging defects and record exact build evidence without LocalStack.
+- [x] Verify non-root migration/API operation against disposable PostgreSQL and one bounded training child in the worker image; document repeat commands and retain full storage/Compose gates as open.
+- [x] Replace the worker image's legacy multi-index install with a complete Linux CPython 3.12 CPU wheel/hash lock, sourcing torch explicitly from its official wheel and other packages from PyPI; verify a clean hash-enforced install, dependency consistency and numerical/recovery checks.

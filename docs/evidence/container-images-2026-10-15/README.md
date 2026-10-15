@@ -1,0 +1,13 @@
+# Independent container evidence — 2026-10-15
+
+[Machine-readable result](results.json) records successful independent API and CPU worker image checks on Docker Desktop/Linux amd64. It includes immutable image IDs, user 10001:10001, Python 3.12.14, torch 2.8.0+cpu and NumPy 2.2.6. No LocalStack service or artifact route was used.
+
+The actual API image ran one-off non-web automatic migration against fresh PostgreSQL 17.11, then served authenticated HTTP from a non-root container. Checks passed for exactly two migrations, missing bearer401, accepted/repeated POST202, conflicting-body409, queued status, API restart, database restart with persisted idempotency/data, queued cancellation and list readback. The PostgreSQL data volume, network and all smoke containers were owned by a unique label and removed after the check. Credentials existed only in subprocess environments; they are absent from this evidence.
+
+The CPU worker image uses an immutable Python base plus a complete [26-wheel Linux lock](../../../worker/requirements-linux.lock), isolated binary/hash-required installation and `pip check`. An intentionally changed filelock SHA-256 was rejected before installation. A real synthetic child completed all three strategies under UID 10001, with networking disabled, root filesystem read-only and temporary writes confined to `/tmp`.
+
+The locked Linux image separately passed **144 tests in 15.28 s**, zero skips: numerical/recovery and worker unit/actual-child suites ([output](numerical-tests.txt)). Test/contract inputs were mounted read-only; Git-provenance and PostgreSQL-only suites were explicitly excluded. The host's separate194/194 research/worker/PostgreSQL result is retained in the [service record](../../../openspec/changes/build-synthetic-service-slice/implementation.md). These runs do not establish Windows/Linux numerical equality or full v2 replay. The retained Linux lock SHA-256 is `15db628235e1f4069565ddbfa02cf805d6d1d12666f47ba8c4a92d562c79df03`.
+
+The first image smoke timed out after restart because Docker changed an automatically assigned host port. A disposable probe reproduced that change; the harness now refreshes its endpoint after restart. The passing retry found no application persistence failure. [Repeat instructions](../../../worker/README.md) use [smoke_images.py](../../../scripts/smoke_images.py); Docker/app startup must already be authorized.
+
+Full Compose initialization, LocalStack/S3 persistence, completed artifact/report publication, durable service resume, complete transitive Maven/Windows locks and physical Android remain unverified. This is a packaging/runtime check, not a full-stack completion or performance benchmark.

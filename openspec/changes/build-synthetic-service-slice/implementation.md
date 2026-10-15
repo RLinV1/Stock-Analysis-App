@@ -1,5 +1,43 @@
 # Implementation record
 
+## Packaging integration checks — 2026-10-15
+
+Final integrated tooling suite passes **136/136 in 36.59 s**, including existing real temporary Git-hook/history checks, 12 Linux-lock trust-boundary cases and three ownership-cleanup cases. Strict OpenSpec passes10/10;110 Markdown documents have zero broken local links/anchors; tracked/new-source/evidence secret scans and diff check pass. Updated security/toolchain/readiness/coverage/context documentation to distinguish the verified Linux image lock/runtime scope from Windows/Maven/GPU, S3/Compose, replay and device gates. All independent packaging tasks are complete; the parent service change remains active because its storage/full-stack requirements remain unverified.
+
+## Independent image smoke passes — 2026-10-15
+
+Isolated the earlier failure: Docker reassigned automatic loopback publication from 41999 to 14173 across a disposable container restart. The harness now reads the current published port after restart; no application persistence defect was found. The final image smoke passes actual non-root migration/API, exactly two automatically applied migrations, missing-bearer401, accepted/repeated202, conflicting-body409, API restart, PostgreSQL restart with retained idempotency/data, queued cancellation/list readback, and a real bounded training child inside the network-disabled/read-only non-root locked worker. All owned containers, volume and network were removed. [Token-free image evidence](../../../docs/evidence/container-images-2026-10-15/results.json) retains immutable image IDs, exact training versions and checks/exclusions. [Worker README](../../../worker/README.md) documents clean builds, repeat smoke and deliberate lock regeneration. This completes the four independent packaging tasks; full Compose/S3/publication and device gates remain open.
+
+## Image restart smoke diagnosis — 2026-10-15
+
+First actual image smoke passed fresh migration (two changesets), actual non-root API health, missing-bearer401, accepted/repeated POST202, conflicting-body409 and queued status. It then hit the readiness timeout during API/database restart persistence. Ownership-checked cleanup removed all task resources; no successful final smoke evidence was written. Diagnose the restart boundary before claiming persistence. The independent locked Linux 144/144 and image builds remain valid. Added sanitized phase progress to make subsequent checks observable without raw credentials/responses.
+
+## Locked image build and Linux numerical verification — 2026-10-15
+
+API image built successfully as `sha256:ea69396eb15407348441efda89272c5bf65b7cf971c758de64190cae69db3fd7`; worker rebuilt from immutable Python base and the complete **26-wheel** hash lock as `sha256:3f64cb831a07e120eb0ee9890aa8aacff6783bc35ac694605db5b1bd3c03133f`. Both declare user 10001:10001/Linux amd64. Clean worker installation enforces isolated wheel-only hashes and `pip check` reports no broken requirements. A disposable negative check with a wrong SHA-256 on filelock fails before installation as expected.
+
+The locked non-root/read-only/network-disabled Linux worker passes **144 numerical/recovery/worker-unit/actual-child tests in 15.28 s**, zero skips. Mounted only test/contract inputs read-only; explicitly excluded Git-provenance and PostgreSQL suites (those retain separate host/database evidence). No host environment changed. Targeted new-source secret scan and diff check pass. Actual image migration/API restart and bounded child smoke remains in progress; full Compose/S3 gates remain open.
+
+## Repeatable image smoke source — 2026-10-15
+
+Added standard-library `scripts/smoke_images.py`: unique labelled Docker network/volume/containers, environment-only generated credentials, actual migration container, non-root API auth/idempotency/conflict/cancel plus API/database restart persistence, and network-disabled/read-only non-root real training child. Cleanup inspects ownership before deletion and reports daemon failure instead of silently claiming teardown. Three targeted cleanup regressions plus the lock generator's 11 checks pass (**14/14**). Live execution awaits completion of the locked worker rebuild. This harness never starts LocalStack or calls artifact routes.
+
+## Linux wheel lock written — 2026-10-15
+
+Both original images built successfully. The initial worker install was explicitly treated as a probe of the legacy recipe. Resolved the same direct runtime versions in Linux Python 3.12.14 using only an exact official CPU torch wheel URL and PyPI for ordinary packages. Added the complete generated Linux wheel/hash lock and an offline report-to-lock tool that rejects wrong targets, untrusted/mutable origins, duplicate identities, missing SHA-256 and direct-pin drift. All **11 trust-boundary regressions pass**. Updated the worker Dockerfile to isolated wheel-only/hash-required installation plus pip check; clean rebuilt-image verification is next. The Windows host environment is unchanged and is not claimed locked.
+
+## Linux worker dependency-lock correction planned — 2026-10-15, before edits
+
+Initial Docker builds use the existing Dockerfiles. Review of SECURITY/TOOLCHAIN during the build found that the worker still installs through research/requirements-cpu.txt's global extra-index setting, contrary to the documented next-install target. Treat that initial image as a packaging probe, not a final locked environment. Extend this existing packaging task with a Linux x86_64/CPython 3.12 complete wheel/hash lock: exact official CPU torch URL, PyPI-only ordinary dependencies, no source distributions, hash enforcement and pip check. Retain Windows requirements as existing environment input rather than claiming a Windows lock. Verify real child training/numerical recovery in the final image. [pip's secure-install documentation](https://pip.pypa.io/en/stable/topics/secure-installs/) and [PyTorch's previous-version instructions](https://pytorch.org/get-started/previous-versions/) were checked; direct numerical versions remain unchanged.
+
+## Docker context exclusion verified — 2026-10-15
+
+Added recursive environment/account/agent/private-key exclusions and nested generated-cache exclusions to `.dockerignore`. First scratch export failed reading a pre-existing nested research pytest cache; excluding nested caches fixed the sender failure. The actual scratch export succeeds (432.30 kB transferred); a path-only audit confirms private environment/account/agent/key paths are absent and all six selected application/contract build inputs remain. Existing ignored runtime credentials were present in the checkout but absent from the export. No secret content was printed. Both image builds are next; full LocalStack/Compose remains unverified.
+
+## Planned independent image verification — 2026-10-15, before edits
+
+User requested continued work until usage is exhausted. Continue existing image/startup gates independently of excluded LocalStack. Current `.dockerignore` omits generated folders but permits ignored `.env.runtime-test` and local account/agent files in the build context. Add private-state exclusions, audit the actual scratch-exported context, build both existing images and verify non-root automatic migration/API on disposable PostgreSQL plus a network-disabled real synthetic training child. Record exact results and packaging corrections; do not claim S3/full Compose/durable recovery acceptance. Working tree is clean at start; local commits remain authorized and no push is configured.
+
 ## Final integrated Python verification — 2026-10-15
 
 The unchanged final research/worker tree passes **194/194 in 64.26 s**, zero skips: 111 research, 43 worker unit/actual-child-process and 40 PostgreSQL cases. Used root `.venv`, explicit research/worker PYTHONPATH, isolated external TMP/TEMP/basetemp, and this task's disposable loopback PostgreSQL. The database fixture dropped its own schema. This supersedes the earlier combined 149-pass source run while preserving its history below. No LocalStack/S3 or Compose worker operation was tested.

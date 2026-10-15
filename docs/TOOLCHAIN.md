@@ -48,7 +48,7 @@ Before changing dependencies:
 3. Generate a full transitive lock with hashes for the target Windows CPU environment and future Linux container environment. Verify a frozen/hash-enforced clean installation for each.
 4. Run numerical/recovery tests and retain the exact environment identity. Changed runtime versions invalidate same-environment replay assumptions.
 
-This workflow is planned; no uv.lock or full hash lock currently exists. Do not replace requirements with an untested example command.
+Linux CPU image update2026-10-15: the worker now uses a complete26-wheel SHA-256 lock with an exact official torch CPU wheel, PyPI-only ordinary wheels, an immutable Python base and isolated binary/hash-required installation. Clean pip check, wrong-hash rejection,144 Linux numerical/recovery/worker checks and a non-root network-disabled real child pass. [Worker instructions](../worker/README.md) cover deliberate regeneration; [image evidence](evidence/container-images-2026-10-15/README.md) records tested identities and runtime checks. A full Windows hash lock, GPU environment and full experiment replay remain open; the existing Windows requirements recipe is not such a lock.
 
 ## ONNX and JVM milestone
 

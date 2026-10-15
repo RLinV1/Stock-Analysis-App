@@ -10,7 +10,7 @@ Future risks are untrusted datasets, unsafe/oversized model files, resource exha
 ## Local development and dependency installation
 
 - Keep isolated environments and synthetic offline tests. Preserve weights_only=True and reject incompatible checkpoints.
-- Current requirements use multiple indexes and omit a full transitive hash lock. Before the next install/upgrade, scope the PyTorch index explicitly to torch and lock all dependencies/artifacts with hashes; verify installation in a clean supported environment.
+- The Linux CPU worker now has a complete wheel/hash lock, explicit official torch wheel/PyPI-only ordinary dependencies and a clean hash-enforced image installation; see [worker instructions](../worker/README.md). The legacy Windows requirements input still uses multiple indexes and lacks a full Windows lock. Before its next install/upgrade, scope torch explicitly, lock all artifacts with hashes and verify a clean supported environment.
 - A one-line --index-url change is not a complete recipe for all dependencies. [TOOLCHAIN.md](TOOLCHAIN.md) owns the planned installation approach.
 - Package/model parsers still need bounds; hashes establish byte identity, not trust.
 - No mandatory license choice, JDK installation or phone setup before local numerical coding.
@@ -28,7 +28,7 @@ Future risks are untrusted datasets, unsafe/oversized model files, resource exha
 - Apply body/rate limits, durable idempotency, leases/fencing, cancellation and hard deadlines per [SPEC.md](SPEC.md).
 - Verify model/scaler hashes against registered metadata and parity evidence before inference. Do not trust an uploaded parity_verified flag.
 - Load credentials from environment/secrets; local placeholders must never become real production credentials.
-- Containers use least privilege. Publish only the API on host loopback, while the process binds its container interface for Compose routing. Database/S3 stay internal.
+- Containers use least privilege. The API/worker images run as10001:10001; independent migration/API restart and network-disabled child checks pass. Docker contexts exclude local environment/account/agent/key files. Publish only the API on host loopback, while the process binds its container interface for Compose routing. Database/S3 stay internal; full Compose/S3 acceptance remains open.
 - Sanitize errors and logs, restrict CORS to known origins, and scan runtime dependencies before exposure.
 
 ## Before phone access

@@ -1,0 +1,49 @@
+{
+  "kind": "independent-image-smoke",
+  "verifiedAt": "2026-10-15T19:21:54.130803+00:00",
+  "images": {
+    "api": {
+      "reference": "portfolio-lab-api:local",
+      "id": "sha256:ea69396eb15407348441efda89272c5bf65b7cf971c758de64190cae69db3fd7",
+      "user": "10001:10001"
+    },
+    "worker": {
+      "reference": "portfolio-lab-worker:local",
+      "id": "sha256:3f64cb831a07e120eb0ee9890aa8aacff6783bc35ac694605db5b1bd3c03133f",
+      "user": "10001:10001"
+    }
+  },
+  "training": {
+    "uid": 10001,
+    "python": "3.12.14",
+    "torch": "2.8.0+cpu",
+    "numpy": "2.2.6",
+    "strategies": [
+      "equal_weight",
+      "lstm",
+      "stock_bond_60_40"
+    ],
+    "state": "completed"
+  },
+  "checks": [
+    "non-root-images",
+    "automatic-migration",
+    "bearer-required",
+    "idempotent-submit",
+    "conflicting-body-409",
+    "api-restart",
+    "database-restart",
+    "queued-cancel",
+    "list-readback",
+    "network-disabled-read-only-worker-child"
+  ],
+  "excluded": [
+    "LocalStack",
+    "S3",
+    "artifact-routes",
+    "worker-job-publication",
+    "full-Compose",
+    "physical-Android"
+  ],
+  "cleanup": "all owned containers, volume and network removed"
+}

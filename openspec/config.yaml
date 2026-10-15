@@ -6,7 +6,10 @@ context: |
   Expo client and unit-tested runs API/worker source exist. The client has a
   measured report viewer and typed equity/allocations readers. PostgreSQL checks
   and bounded real browser/API connect/list/submit/status/cancel pass; S3/worker
-  publication, Compose and physical-device verification remain open.
+  publication, Compose and physical-device verification remain open. API/worker
+  image builds and independent non-root migration/API/database restart and offline
+  child checks pass. The Linux CPU worker has a complete wheel/hash lock; Windows
+  and GPU locks remain open.
   Current stack: React Native/Expo client, Java/Spring Boot API, PostgreSQL, Liquibase,
   LocalStack, Docker Compose, and later K3s. Python/PyTorch owns research and background jobs.
   This supersedes Kotlin/Quarkus after the 2026-09-21 document correction request.

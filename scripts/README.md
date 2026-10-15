@@ -1,5 +1,11 @@
 # scripts
 
+## Independent container and Linux dependency checks
+
+`python scripts/smoke_images.py` checks already-built local API/worker images against disposable PostgreSQL, including non-root migration, bearer/idempotency/cancel, API/database restart and network-disabled real child training. It requires authorized Docker access, creates environment-only ephemeral credentials and deletes only uniquely owned resources. It never starts LocalStack or calls artifact routes. See [worker instructions](../worker/README.md) and [retained evidence](../docs/evidence/container-images-2026-10-15/README.md).
+
+`python scripts/lock_worker_linux.py --write-input .maven-tmp/linux-lock-input.txt` emits exact Linux resolution inputs without the legacy global extra index. After a deliberate trusted pip resolution in Linux, `python scripts/lock_worker_linux.py .maven-tmp/linux-lock-report.json` validates platform, wheel origins, hashes and declared direct pins before writing the worker lock. The script itself does no network access or installation. Complete regeneration and clean-image checks are documented in the worker README.
+
 ## check_secrets.py
 
 Dependency-free (Python standard library only) regular-expression secret

@@ -1,5 +1,19 @@
 ## ADDED Requirements
 
+### Requirement: Exclude private local state from image builds
+Docker build contexts SHALL omit environment credential files, local AWS/agent/account state and private key/credential files. Required application source and contract fixtures SHALL remain available for builds. Runtime secrets SHALL be supplied at execution time rather than copied into an image.
+
+#### Scenario: Build with local runtime credentials present
+- **WHEN** an operator builds API or worker images from a checkout containing ignored environment credentials and local account directories
+- **THEN** those files are absent from the Docker context and images while the required application sources remain available
+
+### Requirement: Install a closed CPU worker environment
+The Linux x86_64 CPython 3.12 CPU worker image SHALL install exact wheel artifacts from a complete SHA-256 lock and reject missing or changed hashes. Torch SHALL use its explicit official CPU wheel; ordinary dependencies SHALL use PyPI without a global extra index. The clean image SHALL pass dependency consistency and synthetic numerical/recovery checks. This environment lock SHALL NOT imply Windows/GPU or full experiment replay support.
+
+#### Scenario: An artifact differs from the worker lock
+- **WHEN** a selected wheel's bytes differ from its recorded SHA-256 or a dependency lacks a required hash
+- **THEN** image installation fails rather than accepting the artifact or resolving an unlocked substitute
+
 ### Requirement: Allow explicitly configured browser origins
 The API SHALL disable cross-origin browser access by default. An explicit comma-separated exact HTTP(S) origin allowlist SHALL enable CORS only for canonical `/api/v1/**` paths, GET/POST methods and Authorization/Content-Type/Idempotency-Key request headers. Invalid or wildcard origin configuration SHALL fail startup. A valid preflight MAY complete without bearer authentication; actual API requests SHALL still require the operator bearer credential. CORS SHALL NOT make path-parameter or malformed path variants public or enable browser cookie credentials.
 
