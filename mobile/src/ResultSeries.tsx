@@ -4,6 +4,7 @@ import { RunsApiError, validateAllocationContext, validateEquityContext } from '
 import type { RunsClient } from './api/client';
 import type { Allocations, RunReport } from './api/contract';
 import type { Colors } from './theme';
+import { useReadableLayout } from './useReadableLayout';
 
 const strategyName = (name: string) => ({ lstm: 'LSTM', equal_weight: 'Equal weight', stock_bond_60_40: '60/40 stocks & bonds' }[name] ?? name);
 
@@ -34,8 +35,12 @@ function useResult<T>(load: () => Promise<T>) {
     }
   }, [load]);
   useEffect(() => {
-    void reload();
-    return () => { sequence.current++; };
+    // Defer the external request; initial state already presents loading. A
+    // disposed effect must not start a request (including Strict Mode replay).
+    let disposed = false;
+    const activeSequence = sequence;
+    void Promise.resolve().then(() => { if (!disposed) void reload(); });
+    return () => { disposed = true; activeSequence.current++; };
   }, [reload]);
   return { data, error, loading, reload };
 }
@@ -79,17 +84,19 @@ function Weights({ allocations, strategy, dateIndex, colors }: { allocations: Al
 }
 
 export function ResultSeries({ client, runId, report, colors }: { client: RunsClient; runId: string; report: RunReport; colors: Colors }) {
+  const layout = useReadableLayout();
+  const controlsStyle = [styles.controls, layout.stacked && styles.stackedControls, { gap: layout.gap }];
   const loadEquity = useCallback(async () => validateEquityContext(await client.equityCurve(runId), report), [client, runId, report]);
   const loadAllocations = useCallback(async () => validateAllocationContext(await client.allocations(runId), report), [client, runId, report]);
   const equity = useResult(loadEquity), allocations = useResult(loadAllocations);
   const strategies = Object.keys(report.strategies);
   const [strategy, setStrategy] = useState(strategies[0]);
   const [dateIndex, setDateIndex] = useState(report.testDates.length - 1);
-  return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+  return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, padding: layout.cardPadding, marginBottom: layout.gap }]}>
     <Text style={[styles.kicker, { color: colors.accent }]}>SYNTHETIC SERIES</Text>
     <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>Equity & allocations</Text>
     <Text style={[styles.body, { color: colors.secondary }]}>Inspect recorded wealth and target weights. Select a strategy for the curve and allocations.</Text>
-    <View style={styles.controls}>{strategies.map((name) => <Control key={name} label={`Inspect ${strategyName(name)}`} selected={strategy === name} onPress={() => setStrategy(name)} colors={colors} />)}</View>
+    <View style={controlsStyle}>{strategies.map((name) => <Control key={name} label={`Inspect ${strategyName(name)}`} selected={strategy === name} onPress={() => setStrategy(name)} colors={colors} />)}</View>
     <Text accessibilityRole="header" style={[styles.heading, { color: colors.text }]}>Equity curve</Text>
     {equity.loading && <Text accessibilityLiveRegion="polite" style={[styles.body, { color: colors.secondary }]}>Loading equity curve…</Text>}
     {equity.error && <>
@@ -102,7 +109,7 @@ export function ResultSeries({ client, runId, report, colors }: { client: RunsCl
       <Text style={[styles.caption, { color: colors.secondary }]}>{`${report.testDates[0]} → ${report.testDates[report.testDates.length - 1]} · ${report.costBps} ${report.costBps === 1 ? 'bp' : 'bps'}`}</Text>
     </>}
     <Text accessibilityLiveRegion="polite" style={[styles.date, { color: colors.text }]}>{`Date: ${report.testDates[dateIndex]} · ${dateIndex + 1} of ${report.testDates.length}`}</Text>
-    <View style={styles.controls}>
+    <View style={controlsStyle}>
       <Control label="Previous date" disabled={dateIndex === 0} onPress={() => setDateIndex((index) => index - 1)} colors={colors} />
       <Control label="Next date" disabled={dateIndex === report.testDates.length - 1} onPress={() => setDateIndex((index) => index + 1)} colors={colors} />
     </View>
@@ -128,6 +135,7 @@ const styles = StyleSheet.create({
   body: { fontSize: 16, lineHeight: 24, marginBottom: 12 },
   caption: { fontSize: 14, lineHeight: 22, marginBottom: 8 },
   controls: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
+  stackedControls: { flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch' },
   control: { minHeight: 48, flexShrink: 1, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, justifyContent: 'center' },
   controlText: { fontSize: 15, lineHeight: 22, fontWeight: '600' },
   date: { fontSize: 16, lineHeight: 24, fontWeight: '600', marginTop: 20, marginBottom: 12 },

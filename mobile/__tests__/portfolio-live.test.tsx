@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import PortfolioApp from '../src/PortfolioApp';
 import { RunsApiError } from '../src/api/client';
 import type { ListOptions, RunsClient, RunsClientOptions } from '../src/api/client';
@@ -74,6 +74,25 @@ async function enterConnection(createClient: (options: RunsClientOptions) => Run
 }
 
 describe('Portfolio Lab live service', () => {
+  test('pending submission exposes busy/disabled state and press-down cannot submit twice', async () => {
+    const { client, createClient } = fakeService();
+    let accept!: (value: AcceptedRun) => void;
+    client.submit.mockReturnValueOnce(new Promise<AcceptedRun>((resolve) => { accept = resolve; }));
+    await enterConnection(createClient);
+    await screen.findByText('Live experiments');
+    await fireEvent.press(screen.getByRole('button', { name: 'New experiment' }));
+    const start = screen.getByRole('button', { name: 'Start experiment' });
+    await fireEvent(start, 'pressIn');
+    expect(client.submit).not.toHaveBeenCalled();
+    await fireEvent.press(start);
+    const pending = screen.getByRole('button', { name: 'Start experiment', disabled: true, busy: true });
+    expect(screen.getByText(/Submitting… waiting/).props.accessibilityLiveRegion).toBe('polite');
+    await fireEvent.press(pending);
+    expect(client.submit).toHaveBeenCalledTimes(1);
+    await act(async () => accept({ runId: RUN_ID }));
+    expect(await screen.findByRole('header', { name: 'Experiment detail' })).toBeTruthy();
+  });
+
   test('connects and shows a live run beside the labeled synthetic demo', async () => {
     const { client, createClient } = fakeService();
     await enterConnection(createClient);

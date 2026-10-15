@@ -40,7 +40,7 @@ const report = {
 };
 
 function response(status: number, body: unknown) {
-  const calls: Array<{ url: string; init: FetchInit }> = [];
+  const calls: { url: string; init: FetchInit }[] = [];
   const fetchImpl: FetchLike = async (url, init) => {
     calls.push({ url, init });
     return { ok: status >= 200 && status < 300, status, text: async () => typeof body === 'string' ? body : JSON.stringify(body) };

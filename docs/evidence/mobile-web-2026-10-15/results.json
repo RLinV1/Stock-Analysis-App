@@ -1,0 +1,56 @@
+{
+  "kind": "mocked-browser-ui",
+  "appUrl": "http://localhost:8081",
+  "playwright": "1.62.1",
+  "browser": "155.0.8059.79",
+  "checks": [
+    {
+      "mode": "light-desktop",
+      "width": 1280,
+      "colorScheme": "light",
+      "checks": [
+        "offline-disabled",
+        "invalid-input",
+        "keyboard-enter",
+        "mocked-report-error-retry",
+        "independent-equity-retry",
+        "strategy-date-values",
+        "token-rejection",
+        "no-horizontal-control-overflow",
+        "no-page-errors"
+      ],
+      "mockedCalls": 9
+    },
+    {
+      "mode": "dark-phone",
+      "width": 390,
+      "colorScheme": "dark",
+      "checks": [
+        "offline-disabled",
+        "invalid-input",
+        "keyboard-enter",
+        "mocked-report-error-retry",
+        "independent-equity-retry",
+        "strategy-date-values",
+        "token-rejection",
+        "no-horizontal-control-overflow",
+        "no-page-errors"
+      ],
+      "mockedCalls": 9
+    }
+  ],
+  "screenshots": [
+    "dark-phone-allocations.png",
+    "dark-phone-large-text-allocations.png",
+    "dark-phone-large-text.png",
+    "dark-phone-measured-report.png",
+    "dark-phone-offline.png",
+    "dark-phone-report-error.png",
+    "dark-phone-results.png",
+    "light-desktop-allocations.png",
+    "light-desktop-measured-report.png",
+    "light-desktop-offline.png",
+    "light-desktop-report-error.png",
+    "light-desktop-results.png"
+  ]
+}

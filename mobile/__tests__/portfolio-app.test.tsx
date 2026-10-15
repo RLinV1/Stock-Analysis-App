@@ -39,6 +39,18 @@ describe('Portfolio Lab preview', () => {
     expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
   });
 
+  test('activates navigation on release rather than press-down', async () => {
+    await render(<App />);
+    const open = screen.getByRole('button', { name: 'Open demo experiment' });
+    expect(open).toHaveStyle({ minHeight: 52, minWidth: 48, paddingVertical: 12 });
+    await fireEvent(open, 'pressIn');
+    expect(screen.getByRole('header', { name: 'Experiments' })).toBeTruthy();
+    await fireEvent(open, 'pressOut');
+    expect(screen.getByRole('header', { name: 'Experiments' })).toBeTruthy();
+    await fireEvent.press(open);
+    expect(screen.getByRole('header', { name: 'Experiment detail' })).toBeTruthy();
+  });
+
   test('keeps submission disabled while the service is absent', async () => {
     await render(<App />);
     await fireEvent.press(screen.getByRole('button', { name: 'New experiment' }));

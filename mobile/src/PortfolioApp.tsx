@@ -10,6 +10,7 @@ import { ReportView } from './ReportView';
 import { ResultSeries } from './ResultSeries';
 import { dark, light } from './theme';
 import type { Colors } from './theme';
+import { useReadableLayout } from './useReadableLayout';
 
 type Page = 'experiments' | 'service' | 'new' | 'detail' | 'results' | 'run' | 'runResults';
 
@@ -86,14 +87,15 @@ function buildRequest(lookback: number, epochs: number): SyntheticRequestV1 {
   };
 }
 
-function Action({ label, onPress, colors, disabled = false, quiet = false }: { label: string; onPress: () => void; colors: Colors; disabled?: boolean; quiet?: boolean }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.action, { backgroundColor: disabled ? colors.muted : quiet ? colors.surface : colors.accent, borderColor: quiet ? colors.border : 'transparent', opacity: pressed ? 0.72 : 1 }]}>
+function Action({ label, onPress, colors, disabled = false, quiet = false, busy = false }: { label: string; onPress: () => void; colors: Colors; disabled?: boolean; quiet?: boolean; busy?: boolean }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled, busy }} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.action, { backgroundColor: disabled ? colors.muted : quiet ? colors.surface : colors.accent, borderColor: quiet ? colors.border : 'transparent', opacity: pressed ? 0.72 : 1 }]}>
     <Text style={[styles.actionText, { color: disabled ? colors.secondary : quiet ? colors.text : colors.onAccent }]}>{label}</Text>
   </Pressable>;
 }
 
 function Card({ children, colors }: { children: React.ReactNode; colors: Colors }) {
-  return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>{children}</View>;
+  const layout = useReadableLayout();
+  return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, padding: layout.cardPadding, marginBottom: layout.gap }]}>{children}</View>;
 }
 
 function RunRow({ run, colors, onPress }: { run: RunSummary; colors: Colors; onPress: () => void }) {
@@ -111,6 +113,7 @@ function integerInRange(value: string, min: number, max: number) {
 export type PortfolioAppProps = { createClient?: typeof createRunsClient };
 
 export default function PortfolioApp({ createClient = createRunsClient }: PortfolioAppProps = {}) {
+  const layout = useReadableLayout();
   const isDark = useColorScheme() === 'dark';
   const colors = isDark ? dark : light;
   const [stack, setStack] = useState<Page[]>(['experiments']);
@@ -383,7 +386,7 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
 
   return <View style={[styles.root, { backgroundColor: colors.bg }]}>
     <StatusBar style={isDark ? 'light' : 'dark'} />
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={[styles.content, { paddingHorizontal: layout.contentPadding }]} keyboardShouldPersistTaps="handled">
       {stack.length > 1 && <View style={styles.backRow}><Action label="Back" onPress={back} colors={colors} quiet /></View>}
       <Text style={[styles.eyebrow, { color: colors.accent }]}>PORTFOLIO LAB</Text>
       <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{title}</Text>
@@ -391,26 +394,26 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
 
       {page === 'experiments' && <>
         <Card colors={colors}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Service connection</Text>
+          <Text accessibilityRole="header" style={[styles.cardTitle, { color: colors.text }]}>Service connection</Text>
           {connected
             ? text(`Connected to ${connectedUrl}.${listFetchedAt ? ` List fetched ${listFetchedAt}; it does not update by itself.` : ''}`, true)
             : text('Not connected. Live runs, submission and cancellation stay unavailable.', true)}
-          {connected && <Action label={listLoading ? 'Refreshing list…' : 'Refresh list'} onPress={() => { void refreshRuns(); }} colors={colors} disabled={listLoading} quiet />}
+          {connected && <Action label={listLoading ? 'Refreshing list…' : 'Refresh list'} onPress={() => { void refreshRuns(); }} colors={colors} disabled={listLoading} busy={listLoading} quiet />}
           {listError && alertText(listError)}
           <Action label={connected ? 'Service settings' : 'Connect to service'} onPress={() => open('service')} colors={colors} quiet />
         </Card>
         <Card colors={colors}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Synthetic demonstration</Text>
+          <Text accessibilityRole="header" style={[styles.cardTitle, { color: colors.text }]}>Synthetic demonstration</Text>
           {text('Explore how a research run will look. This is sample content, not a submitted job or a historical result.', true)}
           <Action label="Open demo experiment" onPress={() => open('detail')} colors={colors} />
         </Card>
         {connected && runs.length > 0 ? <Card colors={colors}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Live experiments</Text>
+          <Text accessibilityRole="header" style={[styles.cardTitle, { color: colors.text }]}>Live experiments</Text>
           {text('Runs reported by the connected service. Every run uses the synthetic dataset.', true)}
           {runs.map((run) => <RunRow key={run.runId} run={run} colors={colors} onPress={() => { openRun(run.runId); open('run'); }} />)}
           <Action label="New experiment" onPress={openNew} colors={colors} quiet />
         </Card> : <Card colors={colors}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>No live experiments yet</Text>
+          <Text accessibilityRole="header" style={[styles.cardTitle, { color: colors.text }]}>No live experiments yet</Text>
           {text(connected
             ? 'The connected service reports no runs. Start one from New experiment.'
             : 'The research service is not connected. You can inspect the planned settings, but cannot start a run yet.', true)}
@@ -419,15 +422,15 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
       </>}
 
       {page === 'service' && <Card colors={colors}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>Runs service</Text>
+        <Text accessibilityRole="header" style={[styles.cardTitle, { color: colors.text }]}>Runs service</Text>
         {text('The address and token stay in memory only. They are forgotten when the app closes and are never shown again.', true)}
         <Text style={[styles.fieldLabel, { color: colors.text }]}>Service base URL</Text>
         <TextInput accessibilityLabel="Service base URL" autoCapitalize="none" autoCorrect={false} keyboardType="url" onChangeText={setBaseUrl} placeholder="http://192.168.1.20:8080" placeholderTextColor={colors.secondary} style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.bg }]} value={baseUrl} />
         <Text style={[styles.fieldLabel, { color: colors.text }]}>Operator token</Text>
         <TextInput key={tokenFieldKey} accessibilityLabel="Operator token" autoCapitalize="none" autoCorrect={false} onChangeText={setToken} secureTextEntry style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.bg }]} />
         <View style={styles.gap} />
-        <Action label="Connect" onPress={() => { void connect(); }} colors={colors} disabled={connecting || baseUrl.trim() === '' || token === ''} />
-        {connecting && <Text style={[styles.helper, { color: colors.secondary }]}>Connecting… nothing is shown until the service responds.</Text>}
+        <Action label="Connect" onPress={() => { void connect(); }} colors={colors} disabled={connecting || baseUrl.trim() === '' || token === ''} busy={connecting} />
+        {connecting && <Text accessibilityLiveRegion="polite" style={[styles.helper, { color: colors.secondary }]}>Connecting… nothing is shown until the service responds.</Text>}
         {connectError && alertText(connectError)}
         {connected && <>
           <Text style={[styles.helper, { color: colors.secondary }]}>{`Connected to ${connectedUrl}. Enter the token again to reconnect.`}</Text>
@@ -436,7 +439,7 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
       </Card>}
 
       {page === 'new' && <Card colors={colors}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>{connected ? 'Experiment settings' : 'Preview settings'}</Text>
+        <Text accessibilityRole="header" style={[styles.cardTitle, { color: colors.text }]}>{connected ? 'Experiment settings' : 'Preview settings'}</Text>
         {text(connected
           ? 'Synthetic sample · LSTM research baseline. Start sends these settings to the connected service.'
           : 'Synthetic sample · LSTM research baseline. These fields are a local preview; no experiment will be sent.', true)}
@@ -448,13 +451,13 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
         {edited.epochs && !integerInRange(epochs, EPOCHS.min, EPOCHS.max) && <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{`Epochs must be a whole number from ${EPOCHS.min} to ${EPOCHS.max}.`}</Text>}
         {connected && <Text style={[styles.helper, { color: colors.secondary }]}>{`Fixed for this request: synthetic dataset, ${FIXED.observations} observations, dataset seed ${FIXED.datasetSeed} · hidden size ${FIXED.hiddenSize} · execution seed ${FIXED.executionSeed} · cost ${FIXED.costBps} bp.`}</Text>}
         <View style={styles.gap} />
-        <Action label="Start experiment" onPress={() => { void submit(); }} colors={colors} disabled={!connected || !draftValid || submitting} />
-        <Text style={[styles.helper, { color: colors.secondary }]}>{startHelper}</Text>
+        <Action label="Start experiment" onPress={() => { void submit(); }} colors={colors} disabled={!connected || !draftValid || submitting} busy={submitting} />
+        <Text accessibilityLiveRegion="polite" style={[styles.helper, { color: colors.secondary }]}>{startHelper}</Text>
         {submitError && alertText(submitError)}
       </Card>}
 
       {page === 'detail' && <Card colors={colors}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>Synthetic preview</Text>
+        <Text accessibilityRole="header" style={[styles.cardTitle, { color: colors.text }]}>Synthetic preview</Text>
         {text('Model: 64-unit LSTM · Dataset: synthetic sample · Status: preview only.', true)}
         {text('No job ID exists. No worker is running. Cancellation is unavailable for sample content.', true)}
         <Action label="View results" onPress={() => open('results')} colors={colors} />
@@ -462,11 +465,11 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
 
       {page === 'results' && <>
         <Card colors={colors}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Report preview · synthetic data</Text>
+          <Text accessibilityRole="header" style={[styles.cardTitle, { color: colors.text }]}>Report preview · synthetic data</Text>
           {text('No measured run is loaded. Performance and allocations are unavailable until a real experiment finishes.', true)}
         </Card>
         <Card colors={colors}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Comparison</Text>
+          <Text accessibilityRole="header" style={[styles.cardTitle, { color: colors.text }]}>Comparison</Text>
           {text('LSTM Sharpe ratio: unavailable — no measured run.')}
           {text('Equal-weight baseline Sharpe ratio: unavailable — no measured run.')}
           {text('Both strategies must use identical dates and costs before a number appears here.', true)}
@@ -475,7 +478,7 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
       </>}
 
       {page === 'run' && <Card colors={colors}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>Live run · synthetic data</Text>
+        <Text accessibilityRole="header" style={[styles.cardTitle, { color: colors.text }]}>Live run · synthetic data</Text>
         {selectedRunId && text(`Run ID: ${selectedRunId}`, true)}
         {runStatus && <>
           {text(`State: ${STATE_LABEL[runStatus.state]}`)}
@@ -487,8 +490,8 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
         {statusLoading && text(runStatus ? 'Refreshing status…' : 'Loading status from the service…', true)}
         {cancelNote && text(cancelNote)}
         {statusError && alertText(statusError)}
-        <Action label="Refresh status" onPress={() => { if (selectedRunId) void loadStatus(selectedRunId); }} colors={colors} disabled={!connected || statusLoading || cancelling || selectedRunId === null} quiet />
-        {cancellable && <Action label="Cancel run" onPress={() => { void cancelRun(); }} colors={colors} disabled={!connected || cancelling || statusLoading} quiet />}
+        <Action label="Refresh status" onPress={() => { if (selectedRunId) void loadStatus(selectedRunId); }} colors={colors} disabled={!connected || statusLoading || cancelling || selectedRunId === null} busy={statusLoading} quiet />
+        {cancellable && <Action label="Cancel run" onPress={() => { void cancelRun(); }} colors={colors} disabled={!connected || cancelling || statusLoading} busy={cancelling} quiet />}
         {cancelling && <Text style={[styles.helper, { color: colors.secondary }]}>Sending cancellation… not confirmed yet.</Text>}
         {runStatus?.state === 'COMPLETE' && <Action label="View results" onPress={() => { open('runResults'); void loadReport(runStatus.runId); void loadManifest(runStatus.runId); }} colors={colors} />}
       </Card>}
@@ -496,15 +499,15 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
       {page === 'runResults' && <>
         {reportLoading && <Card colors={colors}>{text('Loading the measured report…', true)}</Card>}
         {reportError && <Card colors={colors}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Report unavailable</Text>
+          <Text accessibilityRole="header" style={[styles.cardTitle, { color: colors.text }]}>Report unavailable</Text>
           {alertText(reportError)}
           {text('No metrics are shown because the service did not return a valid report.', true)}
           <Action label="Retry report" onPress={() => { if (selectedRunId) void loadReport(selectedRunId); }} colors={colors} disabled={!connected || reportLoading} quiet />
         </Card>}
         {report && <ReportView report={report} colors={colors} />}
-        {report && client && selectedRunId && <ResultSeries key={`${generation.current}:${selectedRunId}`} client={client} runId={selectedRunId} report={report} colors={colors} />}
+        {report && client && selectedRunId && <ResultSeries key={selectedRunId} client={client} runId={selectedRunId} report={report} colors={colors} />}
         <Card colors={colors}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Result files · synthetic data</Text>
+          <Text accessibilityRole="header" style={[styles.cardTitle, { color: colors.text }]}>Result files · synthetic data</Text>
           {manifestLoading && text('Loading the artifact manifest…', true)}
           {manifestError && <>
             {alertText(manifestError)}
@@ -526,16 +529,16 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, width: '100%', maxWidth: 720, alignSelf: 'center', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 48 : 32, paddingBottom: 48 },
   backRow: { alignSelf: 'flex-start', marginBottom: 20 },
   eyebrow: { fontSize: 12, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8 },
-  title: { fontSize: 34, lineHeight: 40, fontWeight: '700' },
+  title: { fontSize: 34, lineHeight: 40, fontWeight: '700', letterSpacing: -0.7 },
   subheading: { fontSize: 14, lineHeight: 21, marginTop: 6, marginBottom: 24 },
   card: { borderWidth: 1, borderRadius: 20, padding: 20, marginBottom: 16 },
   cardTitle: { fontSize: 20, lineHeight: 27, fontWeight: '700', marginBottom: 8 },
   body: { fontSize: 16, lineHeight: 24, marginBottom: 8 },
   gap: { height: 10 },
-  action: { minHeight: 52, borderRadius: 14, borderWidth: 1, paddingHorizontal: 18, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
+  action: { minHeight: 52, minWidth: 48, borderRadius: 14, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 12, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
   actionText: { fontSize: 16, lineHeight: 22, fontWeight: '600', textAlign: 'center' },
   fieldLabel: { fontSize: 15, fontWeight: '600', marginTop: 16, marginBottom: 8 },
-  input: { minHeight: 52, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, fontSize: 16 },
+  input: { minHeight: 52, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 14, fontSize: 16 },
   error: { fontSize: 14, lineHeight: 21, marginTop: 6 },
   helper: { fontSize: 14, lineHeight: 21, marginTop: 12 },
   notice: { fontSize: 14, lineHeight: 21, marginTop: 4 },

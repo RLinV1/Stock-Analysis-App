@@ -1,0 +1,22 @@
+{
+  "kind": "real-api-browser-smoke",
+  "appUrl": "http://localhost:8081",
+  "apiUrl": "http://localhost:8080",
+  "browser": "155.0.8059.79",
+  "runId": "ad7846af-9ee2-44fe-b253-745f65362937",
+  "checks": [
+    "authenticated-connect-list",
+    "real-request-202",
+    "queued-status-refresh",
+    "queued-cancelled",
+    "refreshed-run-list",
+    "no-page-errors"
+  ],
+  "excluded": [
+    "LocalStack",
+    "S3",
+    "worker-training",
+    "completed-results",
+    "physical-Android"
+  ]
+}

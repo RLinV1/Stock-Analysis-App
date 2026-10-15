@@ -44,3 +44,14 @@ Results SHALL retrieve equity and allocations through the authenticated client, 
 #### Scenario: A previous run completes loading late
 - **WHEN** a result response arrives after another run is selected or the connection changes
 - **THEN** it cannot replace the current result
+
+### Requirement: Adapt result controls to large text
+The client SHALL preserve system text scaling and SHALL stack result metrics and strategy/date controls into one column on narrow windows or at large text sizes. Essential actions SHALL remain at least 48 logical pixels tall, expose disabled and busy state where applicable, and commit only on activation rather than press-down. Metric label/value pairs SHALL be available as a single named assistive-reading group. Automated layout checks SHALL NOT be reported as rendered or physical-device acceptance.
+
+#### Scenario: Inspect results with large system text
+- **WHEN** the user inspects a measured report at 200% system text scaling
+- **THEN** metric groups and strategy/date controls use a single column with wrapping text and without suppressing font scaling
+
+#### Scenario: A submission is pending
+- **WHEN** Start experiment is awaiting service acceptance
+- **THEN** the action exposes disabled and busy state and cannot submit another run on press-down
