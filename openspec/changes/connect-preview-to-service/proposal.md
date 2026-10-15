@@ -16,6 +16,8 @@ The mobile preview cannot submit or follow a run, although the API, its contract
 
 ## Impact
 
+2026-10-14 continuation: extend Results to the existing equity-curve and allocations routes, with strict client validation, report-context matching, strategy/date controls and independent retry states. This follows the handoff's next step and the planned Results contract. Native charts expose numerical alternatives and preserve declared conventions/asset order.
+
 Mobile UI and tests only. No new dependency and no persisted credential. Physical-device and live-service checks remain separate.
 
 Decisions taken without user input (user asked not to be asked): memory-only credentials, manual refresh instead of polling, fixed synthetic dataset/execution values shown on screen (observations 420, seed 2026, hidden size 64, execution seed 7, cost 1 bp).

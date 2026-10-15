@@ -52,7 +52,6 @@ export function ReportView({ report, colors }: { report: RunReport; colors: Colo
       <Text accessibilityRole="header" style={[styles.strategy, { color: colors.text }]}>About this result</Text>
       <Text style={[styles.body, { color: colors.secondary }]}>All displayed strategies share the report's evaluation dates and transaction cost. No values are estimated by the app.</Text>
       <Text selectable style={[styles.context, { color: colors.secondary }]}>{`Research run: ${report.researchRunId}`}</Text>
-      <Text style={[styles.note, { color: colors.secondary }]}>Equity and allocation charts are not available in this view yet.</Text>
     </View>
   </>;
 }

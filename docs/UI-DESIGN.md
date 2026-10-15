@@ -1,6 +1,6 @@
 # Portfolio Lab UI direction and acceptance plan
 
-Updated 2026-10-10. The user selected the supplied [apple-design skill](reference/apple-design.md). Android and web are the current implementation targets; the iOS port is deferred. A synthetic Expo preview shell now has the four screen names and seven passing component tests; no rendered/device review or live API check has run yet. The rest of this document remains the planned full client contract.
+Updated 2026-10-14. The user selected the supplied [apple-design skill](reference/apple-design.md). Android and web are the current implementation targets; the iOS port is deferred. The client has an offline preview and connected run/report flow, plus equity/allocations source and component coverage. The earlier preview had dark desktop/390×844 web review; the connected Results screens still require rendered/device and live-service checks. See the [active implementation record](../openspec/changes/connect-preview-to-service/implementation.md) for current automated evidence. This document remains the planned full client contract.
 
 ## Platform adaptation
 
@@ -44,13 +44,13 @@ Baseline comparisons use identical recorded dates and costs. Preserve undefined 
 
 | Check | Acceptance evidence | Current status |
 |---|---|---|
-| Components and state | All listed states; invalid fields; no duplicate actions; cancellation race; failed fetch; undefined metrics | 7 preview behavior tests pass; live-state coverage needs API. |
-| API contract | Real response fixtures; unsupported versions rejected; one idempotency key retained across retry | Not run: API and live client integration unbuilt |
+| Components and state | All listed states; invalid fields; no duplicate actions; cancellation race; failed fetch; undefined metrics | Preview/live fake-client/report tests exist; series/date/retry/race coverage added. Real service races remain unverified. |
+| API contract | Real response fixtures; unsupported versions rejected; one idempotency key retained across retry | Typed request/report/series readers and fake-client tests exist; saved A0 artifact regression added. No real HTTP integration. |
 | Physical Android flow | Submit, monitor, cancel, reconnect and inspect report on the phone | Deferred until local service/client work |
 | Web flow | Same core actions plus keyboard navigation and browser accessibility checks | Not run |
 | Accessibility | TalkBack order/names/announcements; restored focus; gesture alternatives; large text; contrast; no color-only meaning | Not run |
 | Motion | Reverse a sheet mid-motion without jumps; cancel a press; native scroll behavior; reduced-motion equivalents | Not run |
-| Visual review | Inspect rendered light/dark, loading/empty/error/offline, small/tall, keyboard and large-text screenshots | Not run |
+| Visual review | Inspect rendered light/dark, loading/empty/error/offline, small/tall, keyboard and large-text screenshots | Earlier offline preview dark web review only; current connected UI review not run. |
 | Performance | Release-build trace on the phone with refresh rate, frame times and dropped frames during gestures/scrolling | Not run |
 | Recovery | API unavailable; lost acceptance response; app restart; stale cache; worker restart; cancellation/completion race | Not run |
 

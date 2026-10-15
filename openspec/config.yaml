@@ -2,8 +2,10 @@ schema: spec-driven
 context: |
   Selected direction: reproduce a bounded experiment from Deep Learning for
   Portfolio Optimization (Zhang, Zohren, Roberts), then build a mobile experiment
-  lab to replace Flow on the resume. A Python research prototype and Android/web
-  Expo preview shell exist; no API yet.
+  lab to replace Flow on the resume. A Python research prototype, Android/web
+  Expo client and unit-tested runs API/worker source exist. The client has a
+  measured report viewer and typed equity/allocations readers; no live API,
+  Compose or physical-device verification has run.
   Current stack: React Native/Expo client, Java/Spring Boot API, PostgreSQL, Liquibase,
   LocalStack, Docker Compose, and later K3s. Python/PyTorch owns research and background jobs.
   This supersedes Kotlin/Quarkus after the 2026-09-21 document correction request.
@@ -16,8 +18,9 @@ context: |
   Current PC: Ryzen 9 6900HS, approximately 16 GB RAM, RTX 3060 Laptop GPU 6 GB VRAM.
   User selected apple-design guidance for UI: read docs/UI-DESIGN.md and the
   preserved docs/reference/apple-design.md. Adapt to native Android/Expo and web;
-  a synthetic Android/web client shell has seven passing component tests and
-  Android/web exports, but no physical-device or live API verification. The local
+  the Android/web client has 85 passing component/contract tests and clean
+  TypeScript as of 2026-10-14. Earlier preview exports do not verify the current
+  connected Results UI; physical-device and live API checks remain open. The local
   synthetic request adapter and A0 runner have 74 passing research tests plus a
   separate completed CLI smoke. A0 has Git provenance and local repeat/resume
   evidence; historical seed/cost research and v2 replay remain open.

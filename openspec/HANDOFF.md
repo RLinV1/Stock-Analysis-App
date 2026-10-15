@@ -1,6 +1,6 @@
 # Project handoff
 
-Updated 2026-10-13.
+Updated 2026-10-14.
 
 ## Latest direction
 - User requested continued implementation after Claude's Git work, thorough preparation/testing, the supplied apple-design UI skill, then continuation on GPT-6-Sol. Planning/research checks are complete. The app accepted a continuation message to this task with model gpt-6-sol on 2026-10-09; this records the accepted request, not an independent runtime-model inspection.
@@ -19,8 +19,9 @@ Updated 2026-10-13.
 - No live API, Compose, durable worker, K3s, ONNX or historical research verification, and no physical-device check. No services, remotes or network access configuration.
 
 ## Active changes
+- 2026-10-14 continuation: `connect-preview-to-service` now shows equity/allocations with strict readers/context checks, strategy/date controls, numerical alternatives, conventions and independent loading/retry/race guards. Jest **85/85**, TypeScript clean on Node 22.23.2, strict OpenSpec 9/9, targeted secret scan/diff check clean. Saved A0 artifact regression includes all three strategies; no app/Docker, rendered/live HTTP or device check. Missing design artifact and stale config/coverage were reconciled. Detailed evidence: [client record](changes/connect-preview-to-service/implementation.md).
 - [build-synthetic-service-slice](changes/build-synthetic-service-slice/tasks.md): task 1 complete. Source exists and unit tests pass for strict request parsing, fail-closed bearer filter, submit/status/cancel, paginated list (changeset 002), hash-verified manifest and report routes (AWS SDK 2.55.0), leased/fenced worker with attempt-scoped S3 publication, SIGTERM release, epoch-boundary cancel and claim-sweep attempt closing. PostgreSQL integration tests exist but have only been skipped. Compose/Dockerfiles parse; images/startup unrun; Docker engine absent; LocalStack token unconfigured. Remaining tasks need real PostgreSQL/LocalStack/Compose runs.
-- [connect-preview-to-service](changes/connect-preview-to-service/tasks.md): live mobile flow and measured-report Results screen wired and component-tested (Jest 53/53, tsc clean); Apple typography refinement, lint/rendered review, Android cleartext decision, live-service and device checks remain.
+- [connect-preview-to-service](changes/connect-preview-to-service/tasks.md): 10/15 tasks complete; live flow, measured report, equity and allocations wired/component-tested (Jest 85/85, tsc clean). Apple typography refinement, lint/rendered review, Android cleartext decision, live-service and device checks remain. No lint command/config is installed.
 - 2026-10-13 (later): equity-curve and allocations routes added (Java 53 passed, 14 skipped); peer session's invalid-recovered-request attempt closing verified at unit level (Python 98 passed, 19 skipped). A peer session ("No mistakes to here") worked in parallel; read current files before writing.
 - [reproduce-portfolio-learning](changes/reproduce-portfolio-learning/tasks.md): 17/18 tasks complete: tested runner, repeat, evidence and final validation. Historical seed/cost task 4.2 remains open. Do not archive as fully complete.
 - [initialize-version-control](changes/initialize-version-control/tasks.md): Claude's Git/LF setup plus verified source-revision continuation. `scripts/check_secrets.py` (stdlib, 95 tests, repo clean) exists but no hook is installed and a full-history scanner is still needed before publication. OneDrive relocation remains open.
@@ -40,4 +41,4 @@ Updated 2026-10-13.
 - No paid services, public deployment, broker integration or public license selected. No provenance-validated historical dataset located; synthetic data enables app development while that study stays open.
 
 ## Next concrete step
-Show equity curves and allocations in the mobile Results screen from the new verified routes. When the user allows Docker, run the Testcontainers/PostgreSQL tests and the Compose submit-to-result/restart/cancel round trip; then decide Android cleartext vs HTTPS and verify on the phone. Preserve the v2 replay, later research/app/K3s and phone-access requirements; record evidence after each logical change.
+Review the current connected Results UI in light/dark, small-screen and large-text modes when app startup is authorized. When the user allows Docker, run Testcontainers/PostgreSQL tests and the Compose submit-to-result/restart/cancel round trip; then resolve Android cleartext vs HTTPS and verify on the phone. App/Docker stay stopped and Tailscale disconnected. Preserve v2 replay, later research/app/K3s and phone-access requirements; record evidence after each logical change.

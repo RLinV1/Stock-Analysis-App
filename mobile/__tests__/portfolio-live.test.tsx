@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import PortfolioApp from '../src/PortfolioApp';
 import { RunsApiError } from '../src/api/client';
 import type { ListOptions, RunsClient, RunsClientOptions } from '../src/api/client';
-import type { AcceptedRun, ArtifactIndex, RunPage, RunReport, RunState, RunStatus, RunSummary, SyntheticRequestV1 } from '../src/api/contract';
+import type { AcceptedRun, Allocations, ArtifactIndex, EquityCurve, RunPage, RunReport, RunState, RunStatus, RunSummary, SyntheticRequestV1 } from '../src/api/contract';
 
 const RUN_ID = '11111111-2222-4333-8444-555555555555';
 const ATTEMPT_ID = '66666666-7777-4888-9999-aaaaaaaaaaaa';
@@ -44,6 +44,8 @@ type FakeClient = {
   cancel: jest.Mock<Promise<RunStatus>, [string]>;
   manifest: jest.Mock<Promise<ArtifactIndex>, [string]>;
   report: jest.Mock<Promise<RunReport>, [string]>;
+  equityCurve: jest.Mock<Promise<EquityCurve>, [string]>;
+  allocations: jest.Mock<Promise<Allocations>, [string]>;
   list: jest.Mock<Promise<RunPage>, [ListOptions?]>;
 };
 
@@ -54,6 +56,8 @@ function fakeService(state: RunState = 'QUEUED') {
     cancel: jest.fn<Promise<RunStatus>, [string]>(async () => statusOf('CANCEL_REQUESTED')),
     manifest: jest.fn<Promise<ArtifactIndex>, [string]>(async () => MANIFEST),
     report: jest.fn<Promise<RunReport>, [string]>(async () => REPORT),
+    equityCurve: jest.fn<Promise<EquityCurve>, [string]>(async () => ({ dates: REPORT.testDates, costBps: 1, convention: 'Growth of 1 after net costs', series: [{ strategy: 'lstm', wealth: [1.01, 1.1234] }, { strategy: 'equal_weight', wealth: [1.02, 1.1] }] })),
+    allocations: jest.fn<Promise<Allocations>, [string]>(async () => ({ assets: ['STOCK', 'BOND'], convention: 'Prior close target weights; no raw model outputs', strategies: Object.keys(REPORT.strategies).map((strategy) => ({ strategy, rows: REPORT.testDates.map((returnDate) => ({ returnDate, weights: [0.6, 0.4] })) })) })),
     list: jest.fn<Promise<RunPage>, [ListOptions?]>(async () => ({ items: [summaryOf(state)], nextCursor: null })),
   };
   const createClient = jest.fn<RunsClient, [RunsClientOptions]>(() => client);
@@ -217,6 +221,10 @@ describe('Portfolio Lab live service', () => {
     expect(client.manifest).toHaveBeenCalledWith(RUN_ID);
     expect(screen.getByRole('header', { name: 'Results' })).toBeTruthy();
     expect(client.report).toHaveBeenCalledWith(RUN_ID);
+    expect(await screen.findByText('LSTM wealth: 1.1234')).toBeTruthy();
+    expect(screen.getByText('STOCK: 60.00%')).toBeTruthy();
+    expect(client.equityCurve).toHaveBeenCalledWith(RUN_ID);
+    expect(client.allocations).toHaveBeenCalledWith(RUN_ID);
     expect(screen.getByText('Measured report')).toBeTruthy();
     expect(screen.getByText('SYNTHETIC DATA')).toBeTruthy();
     expect(screen.getByText('Evaluation: 2026-10-12 to 2026-10-13')).toBeTruthy();

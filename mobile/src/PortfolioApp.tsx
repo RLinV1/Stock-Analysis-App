@@ -7,6 +7,7 @@ import type { RunsClient } from './api/client';
 import { EPOCHS, LOOKBACK } from './api/contract';
 import type { ArtifactIndex, RunReport, RunState, RunStatus, RunSummary, SyntheticRequestV1 } from './api/contract';
 import { ReportView } from './ReportView';
+import { ResultSeries } from './ResultSeries';
 import { dark, light } from './theme';
 import type { Colors } from './theme';
 
@@ -501,6 +502,7 @@ export default function PortfolioApp({ createClient = createRunsClient }: Portfo
           <Action label="Retry report" onPress={() => { if (selectedRunId) void loadReport(selectedRunId); }} colors={colors} disabled={!connected || reportLoading} quiet />
         </Card>}
         {report && <ReportView report={report} colors={colors} />}
+        {report && client && selectedRunId && <ResultSeries key={`${generation.current}:${selectedRunId}`} client={client} runId={selectedRunId} report={report} colors={colors} />}
         <Card colors={colors}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Result files · synthetic data</Text>
           {manifestLoading && text('Loading the artifact manifest…', true)}

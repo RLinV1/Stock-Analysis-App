@@ -15,3 +15,9 @@
 - [ ] Refine Apple-inspired typography, grouped surfaces and control spacing while preserving text scaling, press feedback, Android Back and synthetic labels.
 - [x] Write component coverage for report success, undefined metrics, loading/failure/retry and stale responses.
 - [ ] Run client tests, TypeScript, lint, and rendered light/dark/large-text review when execution is permitted; validate OpenSpec before archive.
+
+## Equity and allocations continuation — 2026-10-14
+
+- [x] Add typed equity/allocations endpoint readers with strict shape, date, dimension, finite-value and weight checks; cover malformed responses and authentication/errors.
+- [x] Show equity and allocations in Results with report-context validation, date/strategy controls, independent loading/error/retry and stale-response protection; test these behaviors.
+- [x] Run Jest/TypeScript and strict OpenSpec validation; record evidence and update handoff immediately. Keep rendered/live API/phone acceptance open until actually checked.

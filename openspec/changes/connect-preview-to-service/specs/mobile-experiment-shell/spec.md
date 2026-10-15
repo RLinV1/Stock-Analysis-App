@@ -29,3 +29,18 @@ The client SHALL retrieve completed reports through the authenticated runs clien
 #### Scenario: Service result unavailable
 - **WHEN** loading a completed report fails
 - **THEN** the screen displays an honest failure and a named retry action
+
+### Requirement: Inspect validated equity and allocations
+Results SHALL retrieve equity and allocations through the authenticated client, require finite equity values on ordered real calendar dates and finite long-only weights in declared asset order summing to one within 1e-6. Displayed views SHALL match the measured report's dates and strategies; equity SHALL also match its transaction cost. The UI SHALL show endpoint conventions, numerical equity values and labelled asset weights with named strategy/date controls, explicit synthetic labels and the research notice. Each view SHALL have independent loading/error/retry states. Responses from previous runs or connections SHALL NOT replace the selected run's values.
+
+#### Scenario: Inspect a date
+- **WHEN** valid report, equity and allocations are returned and the user selects an evaluation date
+- **THEN** Results shows the measured wealth and weights for that date, preserving asset order and conventions
+
+#### Scenario: Reject incompatible result views
+- **WHEN** an equity or allocations view disagrees with the measured report's dates or strategies, or equity disagrees with its cost
+- **THEN** that view shows an unavailable state with a retry action while the valid report remains visible
+
+#### Scenario: A previous run completes loading late
+- **WHEN** a result response arrives after another run is selected or the connection changes
+- **THEN** it cannot replace the current result

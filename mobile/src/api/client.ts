@@ -1,5 +1,5 @@
 import { LIST_LIMIT, RUN_STATES, validateRequest } from './contract';
-import type { AcceptedRun, ArtifactFile, ArtifactIndex, RunPage, RunReport, RunState, RunStatus, RunSummary, StrategyMetrics, SyntheticRequestV1 } from './contract';
+import type { AcceptedRun, Allocations, ArtifactFile, ArtifactIndex, EquityCurve, RunPage, RunReport, RunState, RunStatus, RunSummary, StrategyMetrics, SyntheticRequestV1 } from './contract';
 
 // Typed client for the local runs API (contracts/runs-api.v1.openapi.yaml).
 // It never fabricates a run ID or state: every failure throws RunsApiError.
@@ -32,6 +32,8 @@ export type RunsClient = {
   cancel(runId: string): Promise<RunStatus>;
   manifest(runId: string): Promise<ArtifactIndex>;
   report(runId: string): Promise<RunReport>;
+  equityCurve(runId: string): Promise<EquityCurve>;
+  allocations(runId: string): Promise<Allocations>;
   list(options?: ListOptions): Promise<RunPage>;
 };
 
@@ -106,6 +108,79 @@ function finiteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function orderedDates(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length > 0 && value.every((date, i) => {
+    if (typeof date !== 'string' || !DATE.test(date)) return false;
+    const parsed = new Date(`${date}T00:00:00Z`);
+    return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date
+      && (i === 0 || date > value[i - 1]);
+  });
+}
+
+function named(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function parseEquity(body: unknown): EquityCurve {
+  if (!isObject(body) || !orderedDates(body.dates) || !named(body.convention)
+    || !finiteNumber(body.costBps) || body.costBps < 0 || body.costBps > 100
+    || !Array.isArray(body.series) || body.series.length === 0) return invalidResponse('equity curve');
+  const dates = body.dates;
+  const names = new Set<string>();
+  const series = body.series.map((item) => {
+    if (!isObject(item) || !named(item.strategy) || names.has(item.strategy)
+      || !Array.isArray(item.wealth) || item.wealth.length !== dates.length
+      || !item.wealth.every(finiteNumber)) return invalidResponse('equity curve');
+    names.add(item.strategy);
+    return { strategy: item.strategy, wealth: item.wealth as number[] };
+  });
+  return { dates, costBps: body.costBps, convention: body.convention, series };
+}
+
+function parseAllocations(body: unknown): Allocations {
+  if (!isObject(body) || !named(body.convention) || !Array.isArray(body.assets)
+    || body.assets.length === 0 || !body.assets.every(named) || new Set(body.assets).size !== body.assets.length
+    || !Array.isArray(body.strategies) || body.strategies.length === 0) return invalidResponse('allocations');
+  const assets = body.assets as string[];
+  const names = new Set<string>();
+  const strategies = body.strategies.map((item) => {
+    if (!isObject(item) || !named(item.strategy) || names.has(item.strategy)
+      || !Array.isArray(item.rows) || item.rows.length === 0) return invalidResponse('allocations');
+    names.add(item.strategy);
+    const rows = item.rows.map((row) => {
+      if (!isObject(row) || !Array.isArray(row.weights) || row.weights.length !== assets.length
+        || !row.weights.every((weight) => finiteNumber(weight) && weight >= 0 && weight <= 1)) return invalidResponse('allocations');
+      const weights = row.weights as number[];
+      if (Math.abs(weights.reduce((sum, weight) => sum + weight, 0) - 1) > 1e-6) return invalidResponse('allocations');
+      return { returnDate: row.returnDate, weights };
+    });
+    if (!orderedDates(rows.map((row) => row.returnDate))) return invalidResponse('allocations');
+    return { strategy: item.strategy, rows: rows as { returnDate: string; weights: number[] }[] };
+  });
+  return { assets, convention: body.convention, strategies };
+}
+
+function sameValues(left: string[], right: string[]) {
+  return left.length === right.length && left.every((value, i) => value === right[i]);
+}
+
+// Endpoint authentication supplies service identity; comparison context must also agree.
+export function validateEquityContext(curve: EquityCurve, report: RunReport): EquityCurve {
+  if (!sameValues(curve.dates, report.testDates) || curve.costBps !== report.costBps
+    || !sameValues(curve.series.map((item) => item.strategy).sort(), Object.keys(report.strategies).sort())) {
+    return invalidResponse('equity comparison');
+  }
+  return curve;
+}
+
+export function validateAllocationContext(allocations: Allocations, report: RunReport): Allocations {
+  if (!sameValues(allocations.strategies.map((item) => item.strategy).sort(), Object.keys(report.strategies).sort())
+    || !allocations.strategies.every((item) => sameValues(item.rows.map((row) => row.returnDate), report.testDates))) {
+    return invalidResponse('allocation comparison');
+  }
+  return allocations;
+}
+
 function parseMetrics(value: unknown): StrategyMetrics {
   if (!isObject(value)) return invalidResponse('report');
   const { cumulative_return, annualized_volatility, sharpe, sharpe_note, max_drawdown,
@@ -136,8 +211,7 @@ function parseMetrics(value: unknown): StrategyMetrics {
 function parseReport(body: unknown): RunReport {
   if (!isObject(body) || typeof body.run_id !== 'string' || body.run_id.length === 0
     || typeof body.method_label !== 'string' || body.method_label.length === 0
-    || !Array.isArray(body.test_dates) || body.test_dates.length === 0
-    || !body.test_dates.every((date) => typeof date === 'string' && DATE.test(date))
+    || !orderedDates(body.test_dates)
     || !finiteNumber(body.cost_bps) || body.cost_bps < 0 || body.cost_bps > 100
     || !isObject(body.strategies) || Object.keys(body.strategies).length === 0) {
     return invalidResponse('report');
@@ -264,6 +338,14 @@ export function createRunsClient({ baseUrl, token, fetchImpl = fetch, timeoutMs 
     async report(runId) {
       requireRunId(runId);
       return call('GET', `/api/v1/runs/${runId}/report`, parseReport);
+    },
+    async equityCurve(runId) {
+      requireRunId(runId);
+      return call('GET', `/api/v1/runs/${runId}/equity-curve`, parseEquity);
+    },
+    async allocations(runId) {
+      requireRunId(runId);
+      return call('GET', `/api/v1/runs/${runId}/allocations`, parseAllocations);
     },
     async list(options = {}) {
       const { limit = LIST_LIMIT.default, cursor } = options;

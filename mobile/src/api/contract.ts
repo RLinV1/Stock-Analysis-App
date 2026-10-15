@@ -50,6 +50,18 @@ export type RunReport = {
   strategies: Record<string, StrategyMetrics>;
 };
 
+export type EquityCurve = {
+  dates: string[];
+  costBps: number;
+  convention: string;
+  series: { strategy: string; wealth: number[] }[];
+};
+export type Allocations = {
+  assets: string[];
+  convention: string;
+  strategies: { strategy: string; rows: { returnDate: string; weights: number[] }[] }[];
+};
+
 type Range = { min: number; max: number };
 
 function isObject(value: unknown): value is Record<string, unknown> {

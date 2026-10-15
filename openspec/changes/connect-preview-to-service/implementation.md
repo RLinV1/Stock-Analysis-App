@@ -1,5 +1,25 @@
 # Implementation record
 
+## Planned continuation — 2026-10-14, before edits
+
+Continue the handoff's equity/allocations Results task. Extend typed client readers, validate shapes and comparison context, add accessible native charts/date controls and independent error/retry/race coverage. Missing design.md is supplied to describe these decisions before coding. Jest/TypeScript and CLI validation are permitted by the latest handoff's verification history; app/Docker startup and physical-device/rendered checks remain unrun. The config's old “no API yet” context contradicts current source; reconcile it with the documented unit-tested service without claiming runtime acceptance.
+
+### Typed result readers — 2026-10-14
+
+Added `EquityCurve`/`Allocations` types and authenticated readers. Parsers check finite values, real ordered dates, unique names, dimensions and long-only weights/sums within 1e-6. The report parser now applies the same date check. Comparison helpers require report dates/strategies and equity costs to agree. Updated live fake-client types for the added methods. Targeted Jest series/report suites passed 35/35 using the shell's Node 22.12.0; TypeScript on Node 22.23.2 is in progress. No app, Docker, live endpoint or device run. UI wiring remains next.
+
+### Results series source — 2026-10-14
+
+Added `ResultSeries.tsx` beneath the measured report: one selected strategy curve, all strategies' numeric wealth on the selected date, ordered labelled asset bars, report date controls and endpoint conventions. Independent loader sequence guards invalidate late responses on replacement/unmount; errors clear values and expose named per-view retries. Existing report/manifest behavior and research notice remain. Removed the obsolete “charts unavailable” copy. TypeScript on Node 22.23.2 now passes after replacing an incomplete test fixture with a full report. UI tests and full client suite are next; rendered and physical-device review are not satisfied by this source work.
+
+### Results verification and reconciliation — 2026-10-14
+
+Full client Jest passes **85/85 across six suites**, 142.528 seconds on Node 22.23.2; TypeScript passes. New coverage checks light/dark theme props (not rendered appearance), strategy/date controls, asset order, independent loading/retry, context mismatch, stale responses after switching keyed runs, single-date layout and integration into live Results. A retained backend A0 report/allocations fixture is adapted to the documented endpoint shapes: all three strategies pass parser/context checks, declared asset order is retained and final wealth matches reported cumulative return to 12 decimal places. This is a saved-artifact regression, not live HTTP evidence.
+
+The first full run had 82 passes/two failures from an unsupported test matcher loaded before its fix; the completed rerun is clean. TypeScript also caught missing Node globals in the filesystem fixture test; a test-local reference uses the already installed Node types with no dependency change. Strict OpenSpec validation passes 9/9; targeted secret scan and `git diff --check` are clean. Reconciled stale config “no API yet”, UI acceptance status and requirements coverage with source and evidence.
+
+No lint command/config exists in mobile/package.json, so lint is unrun. App, Docker, live service, exports, rendered light/dark/large-text, TalkBack and physical Android were not run. This change remains active (10/15 tasks complete), with UI refinement/acceptance, Android transport and live-service/phone checks still open; do not archive.
+
 Planned on 2026-10-13 before UI edits. The user asked for sub-agents, no confirmation prompts and no execution. A sub-agent writes the UI wiring and tests against `mobile/src/api/client.ts`; nothing here has been run.
 
 Written by the sub-agent and reviewed: `PortfolioApp.tsx` gains a Service connection screen (URL and secure token field; the token field has no `value` prop and is remounted to clear it), connects only after `list({limit: 20})` succeeds, and maps failures to token-free messages. Connected mode lists live runs (server UTC time, attempts), submits the full v1 request with fixed values shown on screen and one idempotency key per opened draft (a new key after the user edits values, since the server rejects a reused key with a different body), replaces the draft with run detail after a 202, offers manual Refresh, Cancel only for QUEUED/RUNNING with the server-returned state, and lists manifest files for COMPLETE runs with "Report viewer not built yet" instead of metrics. Stale responses from an old connection or request are ignored. A failed reconnect disconnects. Disconnected mode is unchanged, so the existing component tests keep their expectations. New `__tests__/portfolio-live.test.tsx` uses an injected fake client for connect success/401/network, token redaction, submit retry with the same key, cancel, refresh and manifest listing. The sub-agent reported two no-op shell calls despite the no-run rule.
