@@ -30,8 +30,8 @@
 
 ## 3. Phase A1 — research (subsequent implementation change)
 
-- [ ] 3.1 `protocol.py` — expanding walk-forward fold generation, 24-month retrain
-- [ ] 3.2 Causality tests that deliberately attempt lookahead and assert failure
+- [x] 3.1 `protocol.py` — expanding walk-forward fold generation, 24-month retrain boundaries (standalone planner delivered in 2026-10-15-add-walk-forward-protocol; training orchestration remains 3.11).
+- [x] 3.2 Causality tests that deliberately attempt lookahead and assert failure (fold/sample tests delivered; end-to-end multi-fold training checks remain 3.11).
 - [ ] 3.3 `baselines.py` — Allocations 1–4, MV, MD, DWP on shared data, folds, and cost model
 - [ ] 3.4 Synthetic-data test with a known optimal allocation; assert the model approaches it
 - [ ] 3.5 Input-normalization experiment (gap #2) — establish whether the model trains at all
@@ -40,6 +40,7 @@
 - [ ] 3.8 `sweep.py` — multi-seed and cost sweeps
 - [ ] 3.9 Manifest emission and verification round-trip
 - [ ] 3.10 Findings writeup with honest result, whatever direction it falls
+- [ ] 3.11 Integrate fold plans into A1 training/evaluation with frozen per-fold model/scaler, retained versions and end-to-end future-mutation tests before claiming walk-forward model execution.
 
 ## 4. Verification
 
@@ -95,6 +96,6 @@ The review ran 17 existing tests successfully. These document corrections change
 
 ## 11. Whole-project requirements coverage — 2026-10-13
 
-- [ ] 11.1 Write docs/REQUIREMENTS-COVERAGE.md mapping accepted/proposed/deferred requirements, evidence, owners and remaining gates.
-- [ ] 11.2 Reconcile stale implementation-status statements without promoting source to runtime evidence.
-- [ ] 11.3 Record source-only review and pending checks; validate links/OpenSpec when process execution is permitted.
+- [x] 11.1 Write docs/REQUIREMENTS-COVERAGE.md mapping accepted/proposed/deferred requirements, evidence, owners and remaining gates.
+- [x] 11.2 Reconcile stale implementation-status statements without promoting source to runtime evidence.
+- [x] 11.3 Record source-only review and pending checks; validate links/OpenSpec when process execution is permitted.

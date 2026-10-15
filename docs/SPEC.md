@@ -1,6 +1,6 @@
 # Portfolio Lab — technical specification
 
-Version 0.2, corrected 2026-09-21. This is the **planned** technical contract except where section 4 names implemented work. The A0 prototype, synthetic Android/web preview and bounded local synthetic request adapter exist. Full v2 manifest schema validation, worker orchestration and replay behavior require implementation and tests before being described as working.
+Version 0.2, status reconciled 2026-10-15. This is the **planned** technical contract except where implemented source/evidence is explicitly named. A0, the bounded synthetic adapter, API/worker source and connected Android/web client exist with automated checks. PostgreSQL checks and bounded browser/API connect/list/submit/status/cancel pass. Full v2 replay, historical research, S3/worker publication, deployment and physical-device behavior remain unverified.
 
 ## 1. Stack
 
@@ -79,8 +79,11 @@ Existing modules:
 - metrics.py: cumulative return, volatility, Sharpe, drawdown, turnover/costs, equal-weight and stock/bond baselines. No Sortino or complete paper baseline suite.
 - model.py: LSTM/softmax allocator and stabilized negative Sharpe.
 - runner.py: fixed holdout, validation selection, local artifacts and completed-epoch recovery.
-- cli.py: synthetic/run commands.
-- Three test modules; 17 passed in the review.
+- service_contract.py: bounded synthetic request validation/canonical identity and local execution.
+- protocol.py: standalone causal expanding 24-month fold planner and validated sample adapter. Full per-fold model training/retention is not integrated.
+- repeat.py: same-environment saved A0 experiment comparison, separate from v2 replay.
+- cli.py: synthetic/run/synthetic-run/repeat commands; consult its help for the current surface.
+- Current tests and retained evidence: [handoff](../openspec/HANDOFF.md), [A0 evidence](A0-EVIDENCE.md).
 
 A0 remains owned by reproduce-portfolio-learning. A1 adds walk-forward, seven paper baselines, volatility scaling, tier/seed/cost experiments, the v2 schema and CLI verifier. B adds distributed jobs and HTTP replay. See [REPRODUCTION.md](REPRODUCTION.md) for current deviations.
 
@@ -93,7 +96,7 @@ A1 must define Sortino/downside denominator, return threshold and zero-loss hand
 
 ## 5. Canonical API and database contract
 
-Routes remain planned as a full service contract. Source-level Spring POST/GET/cancel/manifest handlers (tested with MockMvc) and a paginated run list (written 2026-10-13, not yet compiled), documented in contracts/runs-api.v1.openapi.yaml, a fail-closed local bearer filter (only the exact health path is public) and 24 passing contract/changelog/artifact-store/MVC tests now exist, but no PostgreSQL migration, live HTTP round trip or worker result retrieval has passed. JSON errors use application/problem+json with stable codes and no internal paths. Authentication is required for compute-triggering routes before network access. Paginate run lists; enforce bounded request sizes and numeric budgets.
+Routes remain planned as a full service contract. Spring source implements authenticated submit/status/cancel/list and verified manifest/report/equity/allocations routes with MockMvc/unit checks; [runs-api.v1.openapi.yaml](../contracts/runs-api.v1.openapi.yaml) describes the bounded synthetic slice. The fail-closed bearer filter exposes only the exact health path; opt-in exact-origin CORS permits validated preflight while actual API requests retain bearer authentication. Automatic Liquibase startup/reopening, repository/worker PostgreSQL semantics and a real browser connect/list/submit/status/cancel flow pass. Worker/S3 result publication remains unverified. JSON errors use application/problem+json with stable codes and no internal paths. Authentication is required for compute-triggering routes before network access. Paginate run lists; enforce bounded request sizes and numeric budgets.
 
 | Route | Behavior |
 |---|---|

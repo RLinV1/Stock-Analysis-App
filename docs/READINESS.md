@@ -1,23 +1,23 @@
 # Readiness and milestone gates
 
-Updated 2026-10-11. **The local research runner, bounded synthetic request adapter and Android/web client preview are implemented and tested in their stated scopes.** The full application is not yet runnable; service/container work, live client integration and their acceptance tests remain.
+Updated 2026-10-15. **The local research runner, bounded synthetic adapter, API/worker source and connected Android/web client have automated checks in their stated scopes.** The full stack has not passed runtime acceptance; LocalStack/S3 publication, Compose, completed-result integration and physical-device checks remain.
 
 ## Current evidence
 
-Independent architecture and research reviews found no reason to replace the approved stack. The current Python suite passed all 74 tests in 40.35 seconds, including 15 bounded synthetic-request checks. Retained synthetic repeat and interrupted/resumed outputs matched exactly; [A0 evidence](A0-EVIDENCE.md) records measurements and limitations. The [UI plan](UI-DESIGN.md) adopts the supplied apple-design skill; the preview has 13 passing component tests (2026-10-13), earlier web/Android exports and a dark web visual review at desktop and phone width. No historical reproduction, service/client deployment, physical Android flow or ONNX parity has been verified. Tailscale is disconnected and deferred.
+Independent architecture and research reviews found no reason to replace the approved stack. Retained synthetic repeat and interrupted/resumed outputs matched exactly; [A0 evidence](A0-EVIDENCE.md) records measurements and limitations. The [UI plan](UI-DESIGN.md) adopts the supplied apple-design skill. Connected run/report/equity/allocations source has 91 passing mobile tests, clean TypeScript/lint and Android/web exports. Rendered light/dark/narrow/doubled-browser-text Results checks use fixtures. Java passes 76/76, including automatic startup/reopen and repository PostgreSQL cases; worker SQL passes 40/40 PostgreSQL cases. A real browser/API/PostgreSQL connect/list/submit/status/cancel smoke passes. [Evidence](evidence/mobile-web-2026-10-15/README.md) distinguishes these scopes; the [handoff](../openspec/HANDOFF.md) records detailed checks. No historical reproduction, service/client deployment, physical Android flow or ONNX parity has passed. Tailscale is disconnected and deferred.
 
-Read-only host checks on 2026-09-21:
+Host observations from 2026-09-21, updated with bounded 2026-10-15 verification:
 
 | Item | Observed | Required next |
 |---|---|---|
-| Python research | Python 3.12.14 / PyTorch 2.8.0+cpu; CPU smoke, 74 tests, bounded local request and retained repeat/resume checks pass | Historical seed/cost evidence and full dependency locks remain |
-| Java | Java 21.0.2, Maven 3.9.10 and Spring Boot 4.1.1 source; six contract/MVC tests pass against the Python fixture and HTTP controls | Maintain Java 21 patch, lock transitive dependencies, run PostgreSQL migration/state and live API checks; shell PATH still selects Java 24 |
-| Node/client | Node 22.23.2 installed and used explicitly; fresh shells still select 22.12.0. Expo 57.0.27 client, 13 tests and earlier Android/web exports pass | Select supported Node in each shell; physical Android, light theme, browser accessibility and live API checks remain. npm audit advisories (35, four root packages, all build/test tooling) triaged 2026-10-12 as accepted for local use; recheck on Expo upgrades and before release |
-| Docker | Client 28.3.2 and Compose 2.38.2-desktop.1 installed; desktop-linux engine pipe unavailable even in elevated inspection | Start Docker Desktop's Linux engine and verify container access when implementing Compose |
-| LocalStack | No account/token or S3 persistence check performed in this review | Configure a private token and verify selected image/plan behavior before the Compose demo |
+| Python research | Python 3.12.14 / PyTorch 2.8.0+cpu; CPU smoke, 111 research tests, bounded local request, causal fold planning and retained repeat/resume checks pass | Historical seed/cost evidence and full dependency locks remain |
+| Java | Java 21.0.2, Maven 3.9.10 and Spring Boot 4.1.1; current source/unit evidence in handoff includes authenticated list and artifact/result routes | Maintain Java 21 patch, lock transitive dependencies, verify full S3/worker result publication and Compose startup; shell PATH still selects Java 24 |
+| Node/client | Node 22.23.2 installed and selected explicitly; fresh shells still select 22.12.0. Expo 57.0.27; connected client 91 tests/TypeScript/lint and Android/web exports pass; rendered fixture and bounded real API browser checks pass | Select supported Node in each shell; physical Android/TalkBack, full accessibility and real completed-result checks remain. npm advisories were accepted for local tooling use on 2026-10-12; recheck before release |
+| Docker | Client 28.3.2 and Compose 2.38.2-desktop.1; engine and disposable PostgreSQL verified after explicit startup authorization | Build images and verify Compose independently of K3s; no LocalStack check is authorized now |
+| LocalStack | User explicitly skipped LocalStack checks on 2026-10-15; no token/persistence verification | Retain S3/full Compose acceptance as open; do not enroll or request a token for independent local checks |
 | Project identity | Updated 2026-09-23: local Git history exists and source-revision metadata/local repeat are implemented; complete transitive locks absent | Retain source snapshots and tested locks before third-party reproducibility claims |
 
-Installed binaries and successful imports do not prove cross-service compatibility. Version choices and source references are in [TOOLCHAIN.md](TOOLCHAIN.md). No dependency upgrade, service startup, account setup or network reconnection was performed by this review.
+Installed binaries and successful imports do not prove cross-service compatibility. Version choices and source references are in [TOOLCHAIN.md](TOOLCHAIN.md). Authorized local Docker/API/Expo startup and bounded dependency additions are documented in the active change records; no account enrollment or Tailscale reconnection occurred.
 
 ## Gates apply to the action they protect
 
@@ -49,7 +49,7 @@ The sequence below stages existing milestone requirements; it does not mark a pa
 
 ONNX export/Java inference follows per-fold parity validation and is not needed to view completed experiments. Tailscale remains deferred until the phone milestone. All services run on this PC; the Android app is installed separately. Later paid/public deployment or publication choices are not prerequisites to local implementation.
 
-**Next concrete work:** lock the service environment and implement the Spring/PostgreSQL/Python/LocalStack Compose slice. The 74-test research suite and local request CLI pass, but the request adapter does not satisfy the planned v2 replay contract or cross-language job contract. Keep historical seed/cost comparison open in reproduce-portfolio-learning and physical Android checks open for the client. Do not repeat broad stack review without new evidence.
+**Next concrete work:** integrate the verified worker supervision, client accessibility/browser evidence and startup migration correction. LocalStack checks are excluded by the user, so full Compose/publication acceptance remains open. Continue independently testable work while physical Android/private transport stays deferred. Implement retrievable inputs and executable v2 replay separately; the bounded request/local repeat do not satisfy that contract. Keep historical seed/cost comparison and physical Android checks open. Do not repeat broad stack review without new evidence.
 
 A1 experiments must freeze choices before viewing test outcomes. The annual-rebalancing discrepancy blocks attributing a specific implementation to the paper, not unrelated source development. Normalization experiments belong to training/validation, with all choices recorded.
 

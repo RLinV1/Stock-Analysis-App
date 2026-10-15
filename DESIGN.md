@@ -1,6 +1,6 @@
 # Portfolio Lab — design
 
-Updated 2026-09-21 after the user authorized the requirements-review corrections.
+Updated 2026-10-14; requirements-review decisions remain unchanged.
 
 ## Direction and stack
 
@@ -74,7 +74,7 @@ flowchart TB
     class ONNX pend
 ```
 
-Dashed = not yet built and gated on earlier milestones. The Python runner and a synthetic Android/web client preview exist; no client-to-API connection or other diagram edge is implemented. See Current evidence below.
+Dashed = not yet built and gated on earlier milestones. Runner, API/worker and connected client source exist with unit/component checks; no cross-service diagram edge has passed live runtime verification. See Current evidence below.
 
 The two runtimes never call each other synchronously. They share a database contract and an
 artifact contract, which is what makes a job recoverable after an interruption on either side.
@@ -97,9 +97,9 @@ On this Windows PC, the planned local cluster uses k3d to run K3s in Linux conta
 |---|---|---|
 | A0: bounded prototype | Fixed chronological holdout, two baselines, checkpoint recovery, CPU smoke and bounded historical experiment if accessible | Existing reproduce-portfolio-learning change; partial implementation |
 | A1: fuller research | Walk-forward, seven paper baselines, tier comparisons, seed/cost sweeps, CLI manifest verification, honest findings | Subsequent research implementation change; not built |
-| B: distributed execution | API, durable worker jobs, Postgres/Liquibase, LocalStack, Compose; HTTP verification | Subsequent service change; not built |
+| B: distributed execution | API, durable worker jobs, Postgres/Liquibase, LocalStack, Compose; HTTP verification | Synthetic source/unit tests exist in build-synthetic-service-slice; PostgreSQL/LocalStack/Compose and HTTP verification remain open |
 | B extension | ONNX export, per-fold parity and explicit served-model selection | Required before inference endpoint ships |
-| C: mobile | Android results/status, web-compatible charts, visible offline cache | Synthetic Android/web preview shell and tests exist; live client scope not built |
+| C: mobile | Android results/status, web-compatible charts, visible offline cache | Offline preview and connected run/report/equity/allocations flow are component-tested; rendered/live-service/device/cache acceptance remains open |
 | D: deployment | Additional K3s path and recovery demonstration | Subsequent deployment change; not built |
 
 A0 completion does not imply paper replication or A1 completion. A1 can be reported independently before the application ships. Resume wording must describe measured, completed work only.
@@ -119,11 +119,11 @@ The first usable slice is deliberately small but does not reduce any A1/B/C/D co
 
 ## Current evidence
 
-The Python prototype includes source-revision metadata and local saved-run comparison. All 74 research tests pass; retained synthetic repeat/resume outputs match exactly. A bounded versioned synthetic request schema and Python CLI adapter execute one local A0 run, covered by 15 of those tests. [A0-EVIDENCE.md](docs/A0-EVIDENCE.md) records measurements and limits. A synthetic Android/web client preview exists. No verified historical reproduction, API, live client integration, Compose stack, or K3s deployment exists. [REPRODUCTION.md](docs/REPRODUCTION.md) describes current numerical deviations.
+The Python prototype includes source-revision metadata, bounded synthetic request execution and local saved-run comparison; retained synthetic repeat/resume outputs match exactly. [A0-EVIDENCE.md](docs/A0-EVIDENCE.md) records measurements and limits. Spring source implements submit/status/cancel/list and verified manifest/report/equity/allocations routes; Python worker and Compose source also exist. The Android/web client has connected run/results controls with 91 passing component/contract tests, TypeScript/lint and Android/web exports. PostgreSQL startup/repository/worker checks and a bounded real browser connect/list/submit/status/cancel flow pass as of 2026-10-15; rendered Results use fixtures. LocalStack/result publication, physical Android, historical reproduction, Compose and K3s remain unverified. [The handoff](openspec/HANDOFF.md) owns latest verification; [REPRODUCTION.md](docs/REPRODUCTION.md) describes numerical deviations.
 
 ## Access and unresolved choices
 
-UI direction: the user supplied an apple-design skill on 2026-10-09. Apply its interaction/visual principles through [UI-DESIGN.md](docs/UI-DESIGN.md), retaining Expo and native Android conventions. That document includes unrun component, device, accessibility, visual, motion and failure-state checks.
+UI direction: the user supplied an apple-design skill on 2026-10-09. Apply its interaction/visual principles through [UI-DESIGN.md](docs/UI-DESIGN.md), retaining Expo and native Android conventions. Current component and bounded web visual/failure-state evidence is recorded above; device, full accessibility, motion and release-performance checks remain open.
 
 A controlled Transformer comparison was discussed as a possible research extension. It is not an approved replacement for the paper's LSTM baseline or a currently available model option.
 

@@ -1,5 +1,23 @@
 ## What changed
 
+## Planned evidence reconciliation — 2026-10-15, before edits
+
+Continue section 11 by replacing stale global claims that PostgreSQL, rendered web checks and all live HTTP remain unrun. Use retained Java/worker database evidence and the separate bounded browser smoke only after completion. Refresh READINESS, REQUIREMENTS-COVERAGE, README, DESIGN, SPEC, backend/mobile README, OpenSpec context and concise handoff together. Preserve LocalStack/Compose/result publication, physical Android, historical research and full replay as open gates; do not archive incomplete implementation changes.
+
+Completed that reconciliation, including UI-DESIGN's acceptance table and the archived partial fold-planner evidence. Documentation now records Java76/76, research/worker194/194, mobile91/91 with lint/TypeScript/exports, fixture rendering and separate actual browser mutations without claiming storage, Compose, phone or historical completion. Handoff is reduced to current decisions, evidence, remaining gates and concrete next steps, with detailed history retained in change records. Strict OpenSpec passes **10/10**; **108 Markdown files** have zero broken local links/anchors; tracked plus explicit new-source/evidence secret scans pass. Temporary task API/Expo/database are stopped; Docker Desktop/unrelated containers and the prior ignored operator credential are preserved. Local Conventional Commits follow validation; no push or archive of incomplete work.
+
+Service/worker integration committed as `8682938`; mobile/accessibility/browser evidence as `6db3bbb`. Both commits passed the installed staged secret hook. Final documentation is committed separately; the active service/client changes remain open for their explicitly unverified gates.
+
+## Planned reconciliation — 2026-10-14, before edits
+
+User requested all remaining tasks with subagents. The parent owns section 11 documentation reconciliation: inspect the coverage inventory and correct outdated readiness/design/API source statements, verify local Markdown targets/headings and strict OpenSpec, then complete only the delivered documentation tasks. Preserve inaccessible historical data, proposed licensing/defaults and deferred runtime/device/deployment checks. Run Java unit suites explicitly excluding PostgreSQL/Testcontainers so this work cannot start services. Mobile, worker and Git safeguard implementation is delegated with separate artifact ownership; parent maintains the handoff and local commits.
+
+## Requirements inventory reconciled — 2026-10-14
+
+Completed section 11 against the working tree: the existing coverage matrix retains accepted/proposed/deferred scopes and remaining gates. Corrected stale API-not-built/list-not-compiled/client-cannot-submit claims across DESIGN, README, SPEC, READINESS and backend README; linked current evidence rather than treating old counts as current. Research CLI names were checked against source. No behavioral contract changed and no runtime capability was claimed.
+
+Verification: **53 Java unit/MockMvc/contract/result/changelog tests pass**, zero failures/errors/skips, JDK 21.0.2 with offline Maven 3.9.10 and existing cache. Explicit class selection excluded Testcontainers/PostgreSQL and starts no services. All **100 tracked Markdown files have zero unresolved local links/anchors**. Strict OpenSpec verification is performed with the final documentation batch. Historical data audits, A1 implementation, v2 replay, runtime DB/S3, Compose, device and K3s tasks remain open. No license/default acceptance was inferred.
+
 ## Requested model continuation — 2026-10-09
 - After final checks passed, sent the implementation handoff to this existing task with model gpt-6-sol, as explicitly requested by the user. The app tool returned success and the same task ID. No new task or sub-agent was created. Runtime model identity was not independently inspected.
 

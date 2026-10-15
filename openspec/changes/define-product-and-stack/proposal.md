@@ -38,3 +38,5 @@ Prior audit figures remain explicitly unverified. No code/API completion is impl
 ## 2026-10-13 requirements coverage continuation
 
 The user requested work across all project requirements. Add docs/REQUIREMENTS-COVERAGE.md to map the accepted A1/B/C/D requirements to actual source/evidence, remaining work, dependencies and verification gates, while retaining proposed defaults and deferred decisions explicitly. Reconcile stale source-status statements in DESIGN.md, docs/READINESS.md and docs/SPEC.md. This inventory does not reduce required scope or satisfy runtime gates.
+
+2026-10-14 continuation: verify and finish this documentation inventory against the actual source, automated evidence and explicit runtime blockers. Correct stale “not built/not compiled” claims in current readiness/API documentation while preserving historical records. Subagents own separate mobile/worker/Git implementation changes; this parent-owned reconciliation does not claim those pending changes passed.

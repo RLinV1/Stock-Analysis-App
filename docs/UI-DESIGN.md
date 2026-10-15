@@ -1,6 +1,6 @@
 # Portfolio Lab UI direction and acceptance plan
 
-Updated 2026-10-14. The user selected the supplied [apple-design skill](reference/apple-design.md). Android and web are the current implementation targets; the iOS port is deferred. The client has an offline preview and connected run/report flow, plus equity/allocations source and component coverage. The earlier preview had dark desktop/390×844 web review; the connected Results screens still require rendered/device and live-service checks. See the [active implementation record](../openspec/changes/connect-preview-to-service/implementation.md) for current automated evidence. This document remains the planned full client contract.
+Updated 2026-10-15. The user selected the supplied [apple-design skill](reference/apple-design.md). Android and web are the current implementation targets; the iOS port is deferred. The client has an offline preview and connected run/report/equity/allocations flow with 91 component/contract checks. Light/dark/narrow/doubled-browser-text Results review uses fixtures; a separate actual browser/API/PostgreSQL connect/list/submit/status/cancel smoke passes. Physical Android, native large text/TalkBack and real completed-result checks remain open. See the [active implementation record](../openspec/changes/connect-preview-to-service/implementation.md) and [browser evidence](evidence/mobile-web-2026-10-15/README.md). This document remains the planned full client contract.
 
 ## Platform adaptation
 
@@ -45,12 +45,12 @@ Baseline comparisons use identical recorded dates and costs. Preserve undefined 
 | Check | Acceptance evidence | Current status |
 |---|---|---|
 | Components and state | All listed states; invalid fields; no duplicate actions; cancellation race; failed fetch; undefined metrics | Preview/live fake-client/report tests exist; series/date/retry/race coverage added. Real service races remain unverified. |
-| API contract | Real response fixtures; unsupported versions rejected; one idempotency key retained across retry | Typed request/report/series readers and fake-client tests exist; saved A0 artifact regression added. No real HTTP integration. |
+| API contract | Real response fixtures; unsupported versions rejected; one idempotency key retained across retry | Typed readers, fake-client retry and saved A0 artifact regressions pass. Real connect/list/submit/status/cancel passes; completed-result HTTP remains open. |
 | Physical Android flow | Submit, monitor, cancel, reconnect and inspect report on the phone | Deferred until local service/client work |
-| Web flow | Same core actions plus keyboard navigation and browser accessibility checks | Not run |
-| Accessibility | TalkBack order/names/announcements; restored focus; gesture alternatives; large text; contrast; no color-only meaning | Not run |
+| Web flow | Same core actions plus keyboard navigation and browser accessibility checks | Bounded mocked Results/error/keyboard checks and separate real API mutations pass; full traversal/focus coverage remains open. |
+| Accessibility | TalkBack order/names/announcements; restored focus; gesture alternatives; large text; contrast; no color-only meaning | Component reflow and doubled browser text reviewed. Native scaling/TalkBack, focus and full contrast checks remain open. |
 | Motion | Reverse a sheet mid-motion without jumps; cancel a press; native scroll behavior; reduced-motion equivalents | Not run |
-| Visual review | Inspect rendered light/dark, loading/empty/error/offline, small/tall, keyboard and large-text screenshots | Earlier offline preview dark web review only; current connected UI review not run. |
+| Visual review | Inspect rendered light/dark, loading/empty/error/offline, small/tall, keyboard and large-text screenshots | Light 1280×844/dark 390×844 fixture Results/errors/offline and doubled browser text inspected; actual cancelled-state screenshot inspected. Broader/device coverage remains open. |
 | Performance | Release-build trace on the phone with refresh rate, frame times and dropped frames during gestures/scrolling | Not run |
 | Recovery | API unavailable; lost acceptance response; app restart; stale cache; worker restart; cancellation/completion race | Not run |
 
