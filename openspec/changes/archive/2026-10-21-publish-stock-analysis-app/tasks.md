@@ -3,5 +3,5 @@
 - [x] 1.3 Reconcile Graphify's completed extraction, sparse labels and user-stopped HTML check; keep local graph artifacts outside publication.
 - [x] 2.1 Inspect staged files for restricted/generated content; run existing staged/history scanning plus independent redacted Gitleaks file/history scans.
 - [x] 2.2 Validate publication documentation and CI syntax without running research/training/services.
-- [ ] 3.1 Preserve history, commit the current source, set main/origin, push without force, and verify the remote commit and CI outcome.
-- [ ] 3.2 Reconcile implementation/handoff with actual publication results; validate and archive completed changes only after required verification.
+- [x] 3.1 Preserve history, commit the current source, set main/origin, push without force, and verify the remote commit and CI outcome.
+- [x] 3.2 Reconcile implementation/handoff with actual publication results; validate and archive completed changes only after required verification.

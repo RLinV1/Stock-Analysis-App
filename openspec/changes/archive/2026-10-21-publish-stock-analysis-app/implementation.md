@@ -1,5 +1,9 @@
 # Implementation record
 
+## Publication — 2026-10-21
+
+On the owner's explicit instruction, fast-forwarded main from eab38cc to 6f42103 (ancestor check passed), added origin https://github.com/RLinV1/Stock-Analysis-App.git, confirmed the remote had no refs, and pushed `main` without force. `git ls-remote origin main` returned 6f42103, matching local main. The first GitHub Actions "Secret checks" run on 6f42103 succeeded: tracked-file and reachable-history scans passed, which also confirms the workflow syntax. Only main was pushed; feat/synthetic-service-slice, the backup branch and agent worktree branches stay local. Research, worker and mobile source remain unverified by tests.
+
 ## Publication scans and review — 2026-10-21
 
 Session continued by Claude Code after the user confirmed the earlier publication agent had stopped. Staged the complete working tree with `git add -A` (98 added, 31 modified files including the untracked distill-mobile-experiment-interface change). No binaries were staged; the largest tracked file is the existing mobile/package-lock.json (512 kB).
