@@ -4,4 +4,4 @@
 - [x] 2.1 Add offline unit tests with hand-calculated cases and run only those tests (no model training).
 - [x] 2.2 Document every decision and the run commands in docs/HISTORICAL-DATA.md.
 - [x] 3.1 Fetch both tiers and verify the manifests (needs user approval and a yfinance install).
-- [ ] 3.2 Run the four walk-forward configs and record results (needs user approval to run the model).
+- [x] 3.2 Run the four walk-forward configs and record results (needs user approval to run the model).

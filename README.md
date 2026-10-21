@@ -65,6 +65,7 @@ Setup and commands for Windows, macOS, Linux, Docker Compose and the mobile app 
 
 - [Running on Windows, macOS, Linux and Docker Compose](docs/RUNNING.md)
 - [Historical Yahoo data through 2026](docs/HISTORICAL-DATA.md)
+- [First results: LSTM vs classical mean-variance, 60/40 and equal weight](docs/RESULTS.md)
 - [Walk-forward retraining](docs/WALK-FORWARD.md) and [research sweeps](docs/RESEARCH-SWEEPS.md)
 - [Start here](docs/START-HERE.md)
 - [Design and milestones](DESIGN.md)
