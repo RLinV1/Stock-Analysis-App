@@ -1,6 +1,6 @@
 # Project handoff
 
-Updated 2026-10-21. Read actual source, this file, config, relevant specs and active changes before editing. Prior evidence does not validate current uncommitted research source.
+Updated 2026-10-21. Read actual source, this file, config, relevant specs and active changes before editing. Prior evidence does not validate the current research source, which is committed but largely untested.
 
 ## Current authorization
 

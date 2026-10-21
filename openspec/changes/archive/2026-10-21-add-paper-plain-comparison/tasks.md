@@ -1,0 +1,2 @@
+- [x] 1.1 Add the plain-language comparison subsection to section 1 of docs/PAPER-BACKGROUND.md.
+- [x] 2.1 Validate, record, commit, push and open a pull request.
