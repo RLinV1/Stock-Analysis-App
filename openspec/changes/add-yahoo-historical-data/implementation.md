@@ -1,0 +1,9 @@
+# Implementation record
+
+## Acquisition code, configs, tests and run guides - 2026-10-21
+
+Branch `feat/yahoo-data-2026` from main (d8c4305). Added `research/src/portfolio_lab/yahoo.py` (tier definitions, yfinance download with explicit query options, raw byte retention with SHA-256, per-ticker total-return index, common-date alignment with dropped-date count, labelled manifest through the existing `write_dataset`/`load_dataset`), the `fetch-yahoo` CLI command, the optional `data` extra pinning yfinance 1.7.0, and four walk-forward configs under `research/configs/` (tier1/tier2 x paper window/2026). Added docs/HISTORICAL-DATA.md (decisions in plain words, run commands for Windows, macOS and Linux) and docs/RUNNING.md (Python setup per OS, Docker Compose secrets/start/health/stop, mobile client), linked from the README. The design record holds the reasoning behind every decision, as the user asked.
+
+Verification: `pytest tests/test_yahoo.py` passed 13/13 offline with hand-calculated total-return cases, a dropped-date distribution case, invalid values, existing-output refusal before any download and a full injected tier1 fetch accepted by the existing loader. `py_compile` passed for cli.py and yahoo.py. `openspec validate add-yahoo-historical-data --strict` passed.
+
+Not run, per the user's instruction not to run the ML model yet: the full research suite (a started run was stopped before completion, so it gives no result), yfinance installation, any real download, and all four walk-forward runs. The macOS and Linux instructions and Docker Compose steps were written from the project files and have not been executed. `compose.yaml` does not pass `PORTFOLIO_CORS_ALLOWED_ORIGINS` to the API, so the web client against Compose is documented as unsupported rather than changed here.

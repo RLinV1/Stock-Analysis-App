@@ -1,0 +1,7 @@
+- [x] 1.1 Add the Yahoo acquisition module with snapshot hashing, total-return construction and common-date alignment.
+- [x] 1.2 Add the fetch-yahoo CLI command and the optional yfinance dependency.
+- [x] 1.3 Add paper-window and extended-window walk-forward configs for both tiers.
+- [x] 2.1 Add offline unit tests with hand-calculated cases and run only those tests (no model training).
+- [x] 2.2 Document every decision and the run commands in docs/HISTORICAL-DATA.md.
+- [ ] 3.1 Fetch both tiers and verify the manifests (needs user approval and a yfinance install).
+- [ ] 3.2 Run the four walk-forward configs and record results (needs user approval to run the model).
