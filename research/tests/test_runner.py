@@ -8,6 +8,7 @@ from filelock import FileLock, Timeout
 
 from portfolio_lab.data import load_dataset, synthetic_dataset, write_dataset
 from portfolio_lab.runner import RunConfig, run_experiment
+from portfolio_lab.model import OBJECTIVE_CONVENTIONS
 
 
 def fixture(tmp_path):
@@ -33,6 +34,8 @@ def test_epoch_resume_matches_uninterrupted_training(tmp_path):
     a, b = read_json(full / "report.json"), read_json(partial / "report.json")
     assert a["history"] == b["history"]
     assert a["strategies"] == b["strategies"]
+    assert a["objective"] == b["objective"] == OBJECTIVE_CONVENTIONS
+    assert read_json(partial / "manifest.json")["objective"] == OBJECTIVE_CONVENTIONS
     assert read_json(partial / "status.json")["state"] == "completed"
     saved = torch.load(partial / "model.pt", weights_only=True)
     assert saved["mean"].numel() == 6

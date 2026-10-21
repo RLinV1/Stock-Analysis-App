@@ -106,6 +106,8 @@ def execute_synthetic_request(request: dict, output_root: Path, *,
             seed=request["execution"]["seed"],
             cost_bps=request["execution"]["cost_bps"],
             device="cpu",
+            normalization="train-only",
+            objective_window="minibatch",
         )
         run_dir = run_experiment(dataset_path, config, output_root, should_stop=should_stop)
     (run_dir / "request.json").write_bytes(accepted)

@@ -157,4 +157,4 @@ def make_fold_samples(dataset: Dataset, fold: Fold) -> Samples:
     stop = fold.test_indices[-1] + 1
     bounded = Dataset(dataset.dates[:stop], dataset.prices[:stop], dataset.manifest, dataset.manifest_path)
     return make_samples(bounded, fold.lookback, fold.train_end, fold.validation_end,
-                        allow_single_test=True)
+                        allow_single_test=True, normalization="train-only")

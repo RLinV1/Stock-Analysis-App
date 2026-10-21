@@ -48,3 +48,11 @@
 - [x] Build the existing backend and CPU worker Dockerfiles; repair packaging defects and record exact build evidence without LocalStack.
 - [x] Verify non-root migration/API operation against disposable PostgreSQL and one bounded training child in the worker image; document repeat commands and retain full storage/Compose gates as open.
 - [x] Replace the worker image's legacy multi-index install with a complete Linux CPython 3.12 CPU wheel/hash lock, sourcing torch explicitly from its official wheel and other packages from PyPI; verify a clean hash-enforced install, dependency consistency and numerical/recovery checks.
+## Final-boundary stop source continuation — 2026-10-16
+
+- [ ] Final/chunk checkpoint-boundary stopping, safe missing-checkpoint resume rejection and regression source are written; read/review and verify after authorization. No runtime check has executed while the user's independent GPU model runs.
+- [ ] After execution authorization, verify exact stop/resume numerical behavior, worker/child compatibility and broader research regressions; retain full Compose/LocalStack gates and durable service-resume limitations.
+## Immutable publication source continuation — 2026-10-17
+
+- [ ] Conditional create-only result/index writes and missing-report/reserved-index preflight plus fake-storage write-option/collision/no-write regression source are written 2026-10-17; verify after authorization. No storage access or project execution occurred.
+- [ ] After authorization, run worker regressions and separately verify conditional-write/readback/collision behavior with the selected LocalStack under the existing Compose/storage gates. Keep current storage exclusion and full acceptance limitations.

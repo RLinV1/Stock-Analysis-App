@@ -321,6 +321,10 @@ def retain_checkpoint(store: JobStore, s3: Any, bucket: str,
 def upload_artifacts(s3: Any, bucket: str, job: Claimed, run_dir: Path,
                      should_stop=None) -> tuple[str, str]:
     """Verify uploaded bytes by readback; return attempt-scoped index key/hash."""
+    if not (run_dir / "report.json").is_file():
+        raise ValueError("Completed run is missing its report")
+    if (run_dir / "artifact-index.json").exists():
+        raise ValueError("Local run collides with the generated artifact index")
     prefix = f"runs/{job.run_id}/attempts/{job.attempt_id}"
     files = []
     for path in sorted(run_dir.rglob("*")):
@@ -332,7 +336,7 @@ def upload_artifacts(s3: Any, bucket: str, job: Claimed, run_dir: Path,
         key = f"{prefix}/{relative}"
         content = path.read_bytes()
         digest = hashlib.sha256(content).hexdigest()
-        s3.put_object(Bucket=bucket, Key=key, Body=content)
+        s3.put_object(Bucket=bucket, Key=key, Body=content, IfNoneMatch="*")
         returned = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
         if hashlib.sha256(returned).hexdigest() != digest:
             raise ValueError(f"Artifact readback hash mismatch: {relative}")
@@ -347,7 +351,7 @@ def upload_artifacts(s3: Any, bucket: str, job: Claimed, run_dir: Path,
     digest = hashlib.sha256(content).hexdigest()
     if should_stop is not None and should_stop():
         raise TrainingStopped(run_dir)
-    s3.put_object(Bucket=bucket, Key=key, Body=content)
+    s3.put_object(Bucket=bucket, Key=key, Body=content, IfNoneMatch="*")
     returned = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
     if hashlib.sha256(returned).hexdigest() != digest:
         raise ValueError("Artifact index readback hash mismatch")

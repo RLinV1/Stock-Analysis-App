@@ -109,3 +109,24 @@ When recovery rejects an expired run because its stored request is invalid, the 
 #### Scenario: Expired running job has invalid stored request
 - **WHEN** claim selects an expired RUNNING job whose stored request fails validation
 - **THEN** the job becomes FAILED with invalid_request, its previous attempt has a finish time and failed outcome, and no new attempt is created
+### Requirement: Honor cooperative stops at every checkpoint boundary
+The training runner SHALL observe cooperative stop requests after every completed epoch checkpoint, including the final epoch and an explicitly limited epoch chunk, before evaluation or final artifact creation. A boundary stop SHALL retain the completed checkpoint and paused status with its stop reason, and SHALL NOT create completed report/model/request artifacts. A stop before the first epoch MAY have no checkpoint; local resume without an epoch checkpoint SHALL reject before training or mutation of the retained paused evidence. Local checkpoint behavior SHALL NOT imply durable service resume support.
+
+#### Scenario: Stop arrives at the final epoch checkpoint
+- **WHEN** the stop callback is false before training and true after the final checkpoint
+- **THEN** the runner SHALL pause with that checkpoint and SHALL NOT evaluate or publish completed artifacts
+
+#### Scenario: Resume a paused run without a checkpoint
+- **WHEN** a local paused run stopped before its first epoch and has no completed-epoch checkpoint
+- **THEN** resume SHALL reject without training or replacing its paused status/manifest
+
+### Requirement: Create immutable publication objects conditionally
+Worker result artifacts and their final attempt index SHALL use conditional create-only object writes, as stopped checkpoints already do. An existing object collision SHALL fail publication without replacing its bytes, including a final-index collision. The worker SHALL reject a missing local report or a local root artifact-index.json collision before making storage writes. Readback hash checks and database lease/token publication fencing SHALL remain required. This source contract SHALL NOT imply completed LocalStack/Compose verification.
+
+#### Scenario: Existing attempt object collides
+- **WHEN** a result artifact or final index key already exists
+- **THEN** the worker SHALL fail that publication rather than overwrite the existing object
+
+#### Scenario: Local run collides with the generated index
+- **WHEN** the local run contains a root artifact-index.json or lacks report.json
+- **THEN** publication SHALL reject before uploading any object

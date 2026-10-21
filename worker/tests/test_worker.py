@@ -26,8 +26,10 @@ class FakeS3:
     def __init__(self):
         self.objects = {}
         self.corrupt = False
+        self.writes = []
 
     def put_object(self, *, Bucket, Key, Body, **kwargs):
+        self.writes.append({"Bucket": Bucket, "Key": Key, **kwargs})
         if kwargs.get("IfNoneMatch") == "*":
             assert (Bucket, Key) not in self.objects, "immutable object overwritten"
         self.objects[(Bucket, Key)] = Body
@@ -57,6 +59,8 @@ def test_attempt_scoped_artifacts_and_index_are_verified(tmp_path):
     assert all(item["key"].startswith(f"runs/{job().run_id}/attempts/{job().attempt_id}/")
                for item in index["files"])
     assert not any(".run.lock" in object_key for _, object_key in s3.objects)
+    assert len(s3.writes) == 3
+    assert all(write.get("IfNoneMatch") == "*" for write in s3.writes)
 
 
 def test_readback_mismatch_prevents_index_publication(tmp_path):
@@ -70,8 +74,50 @@ def test_readback_mismatch_prevents_index_publication(tmp_path):
 
 def test_missing_report_is_not_publishable(tmp_path):
     (tmp_path / "request.json").write_text("{}", encoding="utf-8")
+    s3 = FakeS3()
     with pytest.raises(ValueError, match="missing its report"):
-        upload_artifacts(FakeS3(), "lab-artifacts", job(), tmp_path)
+        upload_artifacts(s3, "lab-artifacts", job(), tmp_path)
+    assert s3.objects == {}
+    assert s3.writes == []
+
+
+def test_local_generated_index_collision_rejects_before_storage_writes(tmp_path):
+    (tmp_path / "report.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "artifact-index.json").write_bytes(b"Existing local index evidence")
+    s3 = FakeS3()
+    with pytest.raises(ValueError, match="collides with the generated"):
+        upload_artifacts(s3, "lab-artifacts", job(), tmp_path)
+    assert s3.objects == {}
+    assert s3.writes == []
+    assert (tmp_path / "artifact-index.json").read_bytes() == b"Existing local index evidence"
+
+
+@pytest.mark.parametrize("relative", ["report.json", "artifact-index.json"])
+def test_existing_storage_object_cannot_be_overwritten(tmp_path, relative):
+    (tmp_path / "report.json").write_bytes(b"New report bytes")
+    bucket = "lab-artifacts"
+    key = f"runs/{job().run_id}/attempts/{job().attempt_id}/{relative}"
+    s3 = FakeS3()
+    s3.objects[(bucket, key)] = b"Prior immutable evidence"
+    # FakeS3 deliberately raises on a conditional collision; this is not a
+    # claim about a real storage provider's exception type or compatibility.
+    with pytest.raises(AssertionError, match="immutable object overwritten"):
+        upload_artifacts(s3, bucket, job(), tmp_path)
+    assert s3.objects[(bucket, key)] == b"Prior immutable evidence"
+    if relative == "report.json":
+        assert not any(object_key.endswith("artifact-index.json") for _, object_key in s3.objects)
+
+
+def test_repeated_attempt_publication_preserves_all_prior_bytes(tmp_path):
+    report = tmp_path / "report.json"
+    report.write_bytes(b"First report")
+    s3 = FakeS3()
+    upload_artifacts(s3, "lab-artifacts", job(), tmp_path)
+    before = dict(s3.objects)
+    report.write_bytes(b"Different later report")
+    with pytest.raises(AssertionError, match="immutable object overwritten"):
+        upload_artifacts(s3, "lab-artifacts", job(), tmp_path)
+    assert s3.objects == before
 
 
 class FakeCursor:
@@ -163,6 +209,18 @@ def test_run_one_publishes_completed_attempt(monkeypatch):
     run_one(store, s3, "lab-artifacts", job())
     assert store.calls == ["publish"]
     assert any(key.endswith("artifact-index.json") for _, key in s3.objects)
+
+
+@pytest.mark.parametrize("relative", ["report.json", "artifact-index.json"])
+def test_publication_collision_fails_owned_attempt_without_completion(monkeypatch, relative):
+    monkeypatch.setattr(portfolio_worker, "execute_synthetic_request", fake_execute)
+    store, s3 = RecordingStore(), FakeS3()
+    key = f"runs/{job().run_id}/attempts/{job().attempt_id}/{relative}"
+    s3.objects[("lab-artifacts", key)] = b"Prior immutable evidence"
+    with pytest.raises(AssertionError, match="immutable object overwritten"):
+        run_one(store, s3, "lab-artifacts", job())
+    assert store.calls == ["fail_owned"]
+    assert s3.objects[("lab-artifacts", key)] == b"Prior immutable evidence"
 
 
 def test_run_one_does_not_upload_after_losing_lease(monkeypatch):

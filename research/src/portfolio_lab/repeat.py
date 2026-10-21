@@ -11,13 +11,17 @@ from dataclasses import fields
 from pathlib import Path
 
 from .data import file_hash, load_dataset, save_json
-from .runner import RunConfig, run_experiment, runtime_versions, source_fingerprint
+from .json_io import load_json_object
+from .metrics import CONVENTIONS
+from .model import objective_conventions
+from .runner import (RUN_IDENTITY_FIELDS, RunConfig, run_experiment, runtime_versions,
+                     source_fingerprint, validate_training_setting_types)
 
 
 ABSOLUTE_TOLERANCE = 1e-7
-IDENTITY_FIELDS = ("config", "dataset", "dataset_manifest_sha256", "source_sha256", "versions")
+IDENTITY_FIELDS = RUN_IDENTITY_FIELDS
 REPORT_FIELDS = {"run_id", "method_label", "test_dates", "cost_bps", "best_validation_epoch",
-                 "strategies", "baseline_omissions", "conventions", "history", "runtime"}
+                 "strategies", "baseline_omissions", "conventions", "objective", "history", "runtime"}
 
 
 class IncompatibleInput(ValueError):
@@ -26,25 +30,13 @@ class IncompatibleInput(ValueError):
         self.differences = differences
 
 
-def _reject_constant(value: str):
-    raise ValueError(f"Nonfinite JSON value: {value}")
-
-
 def _read_object(path: Path) -> dict:
-    value = json.loads(path.read_text(encoding="utf-8"), parse_constant=_reject_constant)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected a JSON object in {path.name}")
-    def finite(item):
-        if isinstance(item, float) and not math.isfinite(item):
-            raise ValueError(f"Nonfinite JSON number in {path.name}")
-        if isinstance(item, dict):
-            for child in item.values():
-                finite(child)
-        elif isinstance(item, list):
-            for child in item:
-                finite(child)
-    finite(value)
-    return value
+    return load_json_object(path)
+
+
+def _same_json(left, right) -> bool:
+    return (json.dumps(left, sort_keys=True, allow_nan=False)
+            == json.dumps(right, sort_keys=True, allow_nan=False))
 
 
 def _read_report(directory: Path) -> dict:
@@ -88,24 +80,33 @@ def _read_allocations(directory: Path, manifest: dict) -> list:
 
 def _preflight(reference: Path) -> tuple[dict, Path, RunConfig]:
     manifest = _read_object(reference / "manifest.json")
+    if "evaluation_protocol" in manifest:
+        raise ValueError("A0 local repeat supports fixed-holdout runs only; fold/group replay is unavailable")
     if type(manifest.get("schema_version")) is not int or manifest["schema_version"] != 1:
         raise ValueError("Only local A0 schema_version=1 is supported")
     if _read_object(reference / "status.json").get("state") != "completed":
         raise ValueError("Only a completed reference run can be repeated")
+    if "objective" not in manifest:
+        raise ValueError("Reference predates required objective metadata; local repeat cannot infer it")
     required = {*IDENTITY_FIELDS, "identity_sha256", "scaler", "split_counts", "split_targets",
                 "conventions", "method_label", "deviations"}
     if not required <= manifest.keys():
         raise ValueError("Reference run manifest is incomplete")
     if not isinstance(manifest["config"], dict) or set(manifest["config"]) != {field.name for field in fields(RunConfig)}:
         raise ValueError("Reference must record every configuration field explicitly")
+    if not isinstance(manifest["dataset"], dict):
+        raise ValueError("Reference must record its dataset object")
     config = RunConfig(**manifest["config"])
+    validate_training_setting_types(config)
     config.validate()
     identity = {name: manifest[name] for name in IDENTITY_FIELDS}
     digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
     differences = []
+    method = "synthetic-smoke" if manifest["dataset"].get("kind") == "synthetic" else "paper-inspired"
     for name, actual in (("identity_sha256", digest), ("source_sha256", source_fingerprint()),
-                         ("versions", runtime_versions())):
-        if manifest[name] != actual:
+                         ("versions", runtime_versions()), ("objective", objective_conventions(config.objective_window)),
+                         ("conventions", CONVENTIONS), ("method_label", method)):
+        if not _same_json(manifest[name], actual):
             differences.append({"path": name, "expected": manifest[name], "actual": actual})
     dataset_path = reference / "dataset" / "manifest.json"
     actual_hash = file_hash(dataset_path)
@@ -119,17 +120,27 @@ def _preflight(reference: Path) -> tuple[dict, Path, RunConfig]:
         dataset = load_dataset(dataset_path)
     except ValueError as exc:
         raise IncompatibleInput([{"path": "dataset", "reason": str(exc)}]) from exc
-    if dataset.manifest != manifest["dataset"]:
+    if not _same_json(dataset.manifest, manifest["dataset"]):
         raise IncompatibleInput([{"path": "dataset", "reason": "Copied and recorded manifests differ"}])
     for name in ("model.pt", "checkpoint.pt"):
         if not (reference / name).is_file():
             raise ValueError(f"Completed reference is missing {name}")
-    _read_report(reference)
+    report = _read_report(reference)
+    if any(type(result["metrics"]["observations"]) is not int
+           or result["metrics"]["observations"] != len(report["test_dates"])
+           for result in report["strategies"].values()):
+        raise ValueError("Reference observation counts must match its recorded dates")
+    expected_report = {"objective": manifest["objective"], "conventions": manifest["conventions"],
+                       "method_label": manifest["method_label"], "cost_bps": manifest["config"]["cost_bps"]}
+    differences = [{"path": f"report.{name}", "reason": "Report metadata differs from recorded inputs"}
+                   for name, expected in expected_report.items() if not _same_json(report.get(name), expected)]
+    if differences:
+        raise IncompatibleInput(differences)
     _read_allocations(reference, manifest)
     return manifest, dataset_path, config
 
 
-def _compare(path: str, expected, actual, entries: list[dict]) -> None:
+def _compare(path: str, expected, actual, entries: list[dict], *, absolute_tolerance: float = ABSOLUTE_TOLERANCE) -> None:
     """Compare shape/types/null reasons exactly and finite floats with a fixed bound."""
     if isinstance(expected, dict) and isinstance(actual, dict):
         for key in sorted(expected.keys() | actual.keys()):
@@ -137,24 +148,36 @@ def _compare(path: str, expected, actual, entries: list[dict]) -> None:
             if key not in expected or key not in actual:
                 entries.append({"path": child, "matches": False, "reason": "Missing or extra field"})
             else:
-                _compare(child, expected[key], actual[key], entries)
+                _compare(child, expected[key], actual[key], entries, absolute_tolerance=absolute_tolerance)
     elif isinstance(expected, list) and isinstance(actual, list):
         if len(expected) != len(actual):
             entries.append({"path": path, "matches": False, "reason": "Different lengths",
                             "expected": len(expected), "actual": len(actual)})
         for index, (left, right) in enumerate(zip(expected, actual)):
-            _compare(f"{path}[{index}]", left, right, entries)
+            _compare(f"{path}[{index}]", left, right, entries, absolute_tolerance=absolute_tolerance)
     else:
         entry = {"path": path, "expected": expected, "actual": actual}
         if (isinstance(expected, (int, float)) and not isinstance(expected, bool)
                 and isinstance(actual, (int, float)) and not isinstance(actual, bool)):
-            if not math.isfinite(expected) or not math.isfinite(actual):
-                raise ValueError(f"Nonfinite numeric result at {path}")
-            difference = abs(expected - actual)
             # Integral values (counts/epochs) must agree exactly, including their type.
             integral = isinstance(expected, int) or isinstance(actual, int)
-            entry["absolute_difference"] = difference
-            entry["matches"] = (type(expected) is type(actual) and difference == 0) if integral else difference <= ABSOLUTE_TOLERANCE
+            entry["absolute_tolerance"] = 0 if integral else absolute_tolerance
+            if integral and type(expected) is not type(actual):
+                entry.update(matches=False, reason="Different numeric types")
+            else:
+                if not integral and (not math.isfinite(expected) or not math.isfinite(actual)):
+                    raise ValueError(f"Nonfinite numeric result at {path}")
+                difference = abs(expected - actual)
+                try:
+                    finite_difference = math.isfinite(difference)
+                except OverflowError:
+                    finite_difference = False
+                if not finite_difference:
+                    entry.update(matches=False, absolute_difference_overflow=True,
+                                 reason="Absolute difference exceeds finite reporting range")
+                else:
+                    entry["absolute_difference"] = difference
+                    entry["matches"] = difference == 0 if integral else difference <= absolute_tolerance
         else:
             entry["matches"] = type(expected) is type(actual) and expected == actual
         entries.append(entry)
@@ -164,26 +187,36 @@ def compare_runs(reference: Path, repeated: Path) -> dict:
     """Compare completed local run outputs; does not certify artifact authenticity."""
     entries = []
     manifests = [_read_object(path / "manifest.json") for path in (reference, repeated)]
+    if any("evaluation_protocol" in manifest for manifest in manifests):
+        raise ValueError("A0 local comparison does not support fold/group evaluation protocols")
+    if any(type(manifest.get("schema_version")) is not int or manifest["schema_version"] != 1 for manifest in manifests):
+        raise ValueError("Only local A0 schema_version=1 is supported")
+    if any("objective" not in manifest for manifest in manifests):
+        raise ValueError("Local comparison requires recorded objective metadata")
     for path in (reference, repeated):
         if _read_object(path / "status.json").get("state") != "completed":
             raise ValueError("Both compared runs must be completed")
-    for name in ("config", "dataset", "dataset_manifest_sha256", "source_sha256", "versions"):
-        if manifests[0][name] != manifests[1][name]:
+    for name in IDENTITY_FIELDS:
+        if not _same_json(manifests[0][name], manifests[1][name]):
             raise IncompatibleInput([{"path": name, "reason": "Compared run inputs differ"}])
     for name in ("scaler", "split_counts", "split_targets", "conventions", "method_label", "deviations"):
-        _compare(f"manifest.{name}", manifests[0][name], manifests[1][name], entries)
+        _compare(f"manifest.{name}", manifests[0][name], manifests[1][name], entries,
+                 absolute_tolerance=0 if name == "conventions" else ABSOLUTE_TOLERANCE)
     reports = [_read_report(path) for path in (reference, repeated)]
     for report in reports:
         # UUIDs and measurements are intentionally not numerical reproducibility claims.
         report.pop("run_id")
         report.pop("runtime")
+    for name in ("objective", "conventions", "cost_bps", "method_label"):
+        _compare(f"report.{name}", reports[0].pop(name), reports[1].pop(name), entries, absolute_tolerance=0)
     _compare("report", reports[0], reports[1], entries)
     _compare("allocations", _read_allocations(reference, manifests[0]),
              _read_allocations(repeated, manifests[1]), entries)
     mismatches = [entry for entry in entries if not entry["matches"]]
     return {"outcome": "different" if mismatches else "matched", "comparison_count": len(entries),
             "mismatch_count": len(mismatches),
-            "max_absolute_difference": max((entry.get("absolute_difference", 0) for entry in entries), default=0),
+            "max_absolute_difference": (None if any(entry.get("absolute_difference_overflow") for entry in entries)
+                                        else max((entry.get("absolute_difference", 0) for entry in entries), default=0)),
             "comparisons": entries}
 
 

@@ -140,8 +140,14 @@ class Samples:
     scale: np.ndarray
 
 
+def validate_normalization(value: object) -> None:
+    if not isinstance(value, str) or value not in ("train-only", "raw"):
+        raise ValueError("normalization must be train-only or raw")
+
+
 def make_samples(dataset: Dataset, lookback: int, train_end: str, validation_end: str,
-                 *, allow_single_test: bool = False) -> Samples:
+                 *, allow_single_test: bool = False, normalization: str = "train-only") -> Samples:
+    validate_normalization(normalization)
     if not isinstance(allow_single_test, bool):
         raise ValueError("allow_single_test must be a boolean")
     if lookback < 2 or train_end >= validation_end:
@@ -162,12 +168,17 @@ def make_samples(dataset: Dataset, lookback: int, train_end: str, validation_end
         message = ("Training and validation need at least two target observations; test needs one"
                    if allow_single_test else "Every chronological split needs at least two target observations")
         raise ValueError(message)
-    # Only rows used as inputs by training samples contribute to scaler fitting.
-    last_training_target = target_indices[train][-1]
-    fit = features[:last_training_target]
-    mean = fit.mean(axis=0)
-    scale = fit.std(axis=0)
-    scale[scale < 1e-12] = 1.0
+    if normalization == "train-only":
+        # Only rows used as inputs by training samples contribute to scaler fitting.
+        last_training_target = target_indices[train][-1]
+        fit = features[:last_training_target]
+        mean = fit.mean(axis=0)
+        scale = fit.std(axis=0)
+        scale[scale < 1e-12] = 1.0
+    else:
+        # Explicit identity transform, not fitted estimates or implicit clipping.
+        mean = np.zeros(features.shape[1], dtype=np.float64)
+        scale = np.ones(features.shape[1], dtype=np.float64)
     normalized = (features - mean) / scale
     x = np.stack([normalized[i - lookback:i] for i in target_indices]).astype(np.float32)
     y = returns[target_indices].astype(np.float32)

@@ -1,8 +1,10 @@
 import json
+from dataclasses import replace
 
 import pytest
 import torch
 
+from portfolio_lab import runner
 from portfolio_lab.data import load_dataset, synthetic_dataset
 from portfolio_lab.runner import RunConfig, RunStopped, run_experiment
 from portfolio_lab.service_contract import SCHEMA_PATH, execute_synthetic_request, load_request
@@ -84,3 +86,67 @@ def test_service_request_passes_stop_check_through(tmp_path):
     assert not (run / "report.json").exists()
     assert not (run / "request.json").exists()
     assert len(list((tmp_path / "runs").glob(".synthetic-input-*"))) == 0
+
+
+def test_final_epoch_boundary_stop_retains_checkpoint_and_resumes_identically(tmp_path):
+    path, cfg = fixture(tmp_path)
+    cfg = replace(cfg, epochs=1)
+    reference = run_experiment(path, cfg, tmp_path / "runs")
+    with pytest.raises(RunStopped) as stopped:
+        run_experiment(path, cfg, tmp_path / "runs", should_stop=stop_after(1))
+    run = stopped.value.run_dir
+    assert stopped.value.epoch == 1
+    assert read_json(run / "status.json") == {"state": "paused", "epoch": 1, "epoch_budget": 1,
+                                               "reason": "stop_requested"}
+    assert torch.load(run / "checkpoint.pt", weights_only=True)["epoch"] == 1
+    for name in ("report.json", "model.pt", "allocations.csv"):
+        assert not (run / name).exists()
+    checkpoint, manifest = (run / "checkpoint.pt").read_bytes(), (run / "manifest.json").read_bytes()
+    run_experiment(path, cfg, tmp_path / "runs", resume=run)
+    assert (run / "checkpoint.pt").read_bytes() == checkpoint
+    assert (run / "manifest.json").read_bytes() == manifest
+    assert read_json(run / "status.json")["state"] == "completed"
+    assert read_json(run / "report.json")["history"] == read_json(reference / "report.json")["history"]
+    assert read_json(run / "report.json")["strategies"] == read_json(reference / "report.json")["strategies"]
+
+
+def test_limited_epoch_chunk_checks_its_final_checkpoint(tmp_path):
+    path, cfg = fixture(tmp_path)
+    with pytest.raises(RunStopped) as stopped:
+        run_experiment(path, cfg, tmp_path / "runs", stop_after_epochs=1, should_stop=stop_after(1))
+    run = stopped.value.run_dir
+    assert stopped.value.epoch == 1
+    assert read_json(run / "status.json")["reason"] == "stop_requested"
+    assert torch.load(run / "checkpoint.pt", weights_only=True)["epoch"] == 1
+    assert not (run / "report.json").exists()
+
+
+def test_missing_checkpoint_resume_preserves_paused_evidence(tmp_path, monkeypatch):
+    path, cfg = fixture(tmp_path)
+    with pytest.raises(RunStopped) as stopped:
+        run_experiment(path, cfg, tmp_path / "runs", should_stop=lambda: True)
+    run = stopped.value.run_dir
+    manifest, status = (run / "manifest.json").read_bytes(), (run / "status.json").read_bytes()
+    def forbidden(*args, **kwargs):
+        pytest.fail("Missing-checkpoint resume must reject before training")
+    monkeypatch.setattr(runner, "_train", forbidden)
+    with pytest.raises(ValueError, match="no completed-epoch checkpoint"):
+        run_experiment(path, cfg, tmp_path / "runs", resume=run)
+    assert (run / "manifest.json").read_bytes() == manifest
+    assert (run / "status.json").read_bytes() == status
+    assert not (run / "checkpoint.pt").exists()
+    assert not (run / "report.json").exists()
+
+
+def test_service_final_boundary_stop_has_no_completed_request_artifacts(tmp_path):
+    request = load_request(SCHEMA_PATH.parent / "examples" / "synthetic-smoke.v1.json")
+    request["model"]["epochs"] = 1
+    with pytest.raises(RunStopped) as stopped:
+        execute_synthetic_request(request, tmp_path / "runs", should_stop=stop_after(1))
+    run = stopped.value.run_dir
+    assert stopped.value.epoch == 1
+    assert (run / "checkpoint.pt").exists()
+    assert read_json(run / "status.json")["reason"] == "stop_requested"
+    for name in ("report.json", "model.pt", "request.json", "request.sha256"):
+        assert not (run / name).exists()
+    assert not list((tmp_path / "runs").glob(".synthetic-input-*"))

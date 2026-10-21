@@ -2,6 +2,14 @@
 
 The worker image targets Linux x86_64 / CPython 3.12.14 and runs as UID/GID 10001. Its immutable Python base and [26-wheel lock](requirements-linux.lock) retain the current direct numerical versions. Torch uses the exact official CPU wheel; ordinary dependencies use PyPI. Installation is isolated, binary-only and hash-required, followed by `pip check`. This is not a Windows/GPU lock or a complete experiment replay contract.
 
+Source status2026-10-17: current research/runner and worker publication edits have
+not been imported, tested or rebuilt under the user's file-only instruction.
+Result artifacts/index now use conditional create-only writes in source, matching
+stopped checkpoints. Missing reports or a reserved local root artifact-index.json
+reject before storage writes; collisions use the existing owned-failure path.
+Fake-storage option/collision/no-publication cases are written but unrun. No
+S3/LocalStack access occurred; prior image evidence does not validate these edits.
+
 From the repository root, with authorized Docker access:
 
 ```powershell

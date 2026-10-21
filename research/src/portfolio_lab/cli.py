@@ -5,9 +5,23 @@ import json
 from pathlib import Path
 
 from .data import load_dataset, synthetic_dataset
+from .json_io import load_json, load_json_object
 from .runner import RunConfig, run_experiment
 from .repeat import repeat_experiment
 from .service_contract import execute_synthetic_request, load_request
+from .walk_forward import WalkForwardConfig, run_walk_forward
+
+
+def _run_config(settings: object) -> RunConfig:
+    """Reject malformed local settings before dispatching any experiment."""
+    if not isinstance(settings, dict):
+        raise ValueError("Run config must be a JSON object")
+    try:
+        config = RunConfig(**settings)
+    except TypeError as error:
+        raise ValueError("Run config must contain required split dates and only declared RunConfig fields") from error
+    config.validate()
+    return config
 
 
 def main() -> None:
@@ -31,6 +45,11 @@ def main() -> None:
     service_run = commands.add_parser("synthetic-run", help="Execute a bounded versioned synthetic request locally")
     service_run.add_argument("request", type=Path, help="Synthetic request v1 JSON")
     service_run.add_argument("--output", type=Path, default=Path("runs"))
+    walk = commands.add_parser("walk-forward", help="Execute explicit frozen-fold research locally")
+    walk.add_argument("dataset", type=Path, help="Validated dataset manifest JSON")
+    walk.add_argument("--config", type=Path, required=True,
+                      help="Complete WalkForwardConfig JSON; no new numerical defaults are adopted")
+    walk.add_argument("--output", type=Path, default=Path("runs"))
     args = parser.parse_args()
     try:
         if args.command == "synthetic":
@@ -43,17 +62,28 @@ def main() -> None:
                 parser.exit(1, f"Repeat outcome: {outcome}; see saved comparison report.\n")
         elif args.command == "synthetic-run":
             print(execute_synthetic_request(load_request(args.request), args.output))
+        elif args.command == "walk-forward":
+            settings = load_json(args.config)
+            if not isinstance(settings, dict):
+                raise ValueError("Walk-forward config must be a complete JSON object")
+            try:
+                config = WalkForwardConfig(**settings)
+            except TypeError as error:
+                raise ValueError("Walk-forward config must contain exactly the declared fields") from error
+            print(run_walk_forward(args.dataset, config, args.output))
         else:
             if args.config:
-                config = RunConfig(**json.loads(args.config.read_text()))
+                config = _run_config(load_json_object(args.config))
             elif args.resume:
-                config = RunConfig(**json.loads((args.resume / "manifest.json").read_text())["config"])
+                manifest = load_json_object(args.resume / "manifest.json")
+                config = _run_config(manifest.get("config"))
             else:
                 dataset = load_dataset(args.dataset)
                 pretest = int(len(dataset.dates) * 0.7)
                 train_end = int(pretest * 0.9)
                 config = RunConfig(str(dataset.dates[train_end - 1]), str(dataset.dates[pretest - 1]),
                                    epochs=args.epochs, seed=args.seed, cost_bps=args.cost_bps)
+                config.validate()
             print(run_experiment(args.dataset, config, args.output, resume=args.resume,
                                  stop_after_epochs=args.stop_after_epochs))
     except (ValueError, FileExistsError, FileNotFoundError, json.JSONDecodeError) as exc:
