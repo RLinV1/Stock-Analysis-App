@@ -1,0 +1,3 @@
+- [x] 1.1 Add the plain-language forecast-versus-end-to-end walkthrough to docs/PAPER-BACKGROUND.md section 1.
+- [x] 1.2 Link it from the README.
+- [x] 2.1 Validate the change, record the result and commit.
