@@ -1,0 +1,3 @@
+- [x] 1.1 Add a high-level project summary at the top of docs/PAPER-BACKGROUND.md.
+- [x] 1.2 Convert the paper equations and inline math to LaTeX without changing their meaning.
+- [x] 2.1 Validate OpenSpec, review the rendered math source, record results, commit and push the docs branch.
