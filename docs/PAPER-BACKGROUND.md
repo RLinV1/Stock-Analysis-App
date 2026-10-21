@@ -2,6 +2,27 @@
 
 Everything you need to know about the source paper before writing reproduction code.
 
+## What this project does
+
+Stock-Analysis-App (developed as Portfolio Lab) is a mobile experiment lab for reproducing and
+stress-testing this paper. The paper trains an LSTM that maps recent prices and returns of four
+asset-class ETFs straight to long-only portfolio weights, optimizing the Sharpe ratio instead of
+forecasting returns first. The project aims to:
+
+- **Reproduce the method honestly:** follow the paper where it is specific, record every choice it
+  leaves open, and report results whether or not they match the published numbers.
+- **Compare against baselines:** fixed allocations and classical portfolios under the same data,
+  costs and walk-forward retraining.
+- **Measure what the paper omits:** run-to-run variance across seeds, cost sensitivity and the
+  effect of the unresolved volatility-instrument choice.
+- **Make experiments recoverable and viewable:** a Python/PyTorch worker on this PC trains
+  background jobs submitted through a Spring Boot API; an Expo app on an Android phone (and the
+  web) submits runs and shows status, equity curves and allocations.
+
+It is a research tool, not investment advice or a trading system. This section states the intended
+scope; the [README](../README.md) and [handoff](../openspec/HANDOFF.md) record what is actually
+implemented and verified.
+
 **Citation:** Zihao Zhang, Stefan Zohren, Stephen Roberts. *Deep Learning for Portfolio
 Optimization.* arXiv:2005.13665 [q-fin.PM], cross-listed cs.LG, q-fin.CP.
 v1 27 May 2020 · v2 9 Jul 2020 · **v3 23 Jan 2021 (the version this document describes).**
@@ -82,7 +103,7 @@ summarizes long history with fewer trainable parameters.
 | Lookback | **50 days** |
 | Feature count | 4 assets × 2 series × 50 days = **400 features** |
 | Output | **Softmax**, one node per asset |
-| Constraint | Long-only: `wᵢ,ₜ ∈ [0,1]`, `Σᵢ wᵢ,ₜ = 1` |
+| Constraint | Long-only: $w_{i,t} \in [0,1]$, $\sum_i w_{i,t} = 1$ |
 | Optimizer | Adam |
 | Batch size | 64 |
 | Validation | 10% of training data held out |
@@ -93,7 +114,7 @@ Equation 7, partly as momentum features. They state feature selection is not the
 they deliberately did **not** fine-tune hyperparameters, to show the end-to-end pipeline works.
 
 **Leverage:** not permitted at the weight level (weights sum to 1). But the volatility-scaling
-multiplier `σ_tgt/σᵢ,ₜ₋₁` in Equation 7 changes effective gross exposure and can push positions
+multiplier $\sigma_{\text{tgt}} / \sigma_{i,t-1}$ in Equation 7 changes effective gross exposure and can push positions
 above or below 1. The paper discusses no cap on this multiplier.
 
 **Never stated:** dropout (never mentioned), learning rate value, weight initialization, gradient
@@ -107,40 +128,53 @@ or framework. See §7.
 Sharpe ratio, **maximized** by gradient ascent. Risk-free rate omitted "for simplicity" (the
 authors' words, an acknowledged simplification).
 
+```math
+L = \frac{\mathbb{E}(R_p)}{\operatorname{Std}(R_p)} \tag{1}
 ```
-Eq 1    L = E(R_p) / Std(R_p)
 
-Eq 2    L_T = E(R_p,t) / sqrt( E(R²_p,t) − (E(R_p,t))² )
-        E(R_p,t) = (1/T) Σ_{t=1..T} R_p,t
+```math
+L_T = \frac{\mathbb{E}(R_{p,t})}{\sqrt{\mathbb{E}(R_{p,t}^2) - \left(\mathbb{E}(R_{p,t})\right)^2}},
+\qquad
+\mathbb{E}(R_{p,t}) = \frac{1}{T} \sum_{t=1}^{T} R_{p,t} \tag{2}
+```
 
-Eq 3    R_p,t = Σ_{i=1..n} w_{i,t-1} · r_{i,t}
-        r_{i,t} = (p_{i,t} / p_{i,t-1}) − 1
+```math
+R_{p,t} = \sum_{i=1}^{n} w_{i,t-1} \, r_{i,t},
+\qquad
+r_{i,t} = \frac{p_{i,t}}{p_{i,t-1}} - 1 \tag{3}
+```
 
-Eq 4    w_{i,t} = f(θ | x_t)
+```math
+w_{i,t} = f(\theta \mid x_t) \tag{4}
+```
 
-Eq 6    θ_new := θ_old + α · ∂L_T/∂θ          ← gradient ASCENT
+Equation 6 is a gradient **ascent** step:
+
+```math
+\theta_{\text{new}} := \theta_{\text{old}} + \alpha \, \frac{\partial L_T}{\partial \theta} \tag{6}
 ```
 
 Two details that matter for implementation:
 
-- **Population standard deviation**, not sample — the denominator uses `1/T`, not `1/(T−1)`.
+- **Population standard deviation**, not sample — the denominator uses $1/T$, not $1/(T-1)$.
   Your existing `negative_sharpe` in `model.py` correctly uses `unbiased=False`.
-- **One-step lag.** Weights formed at `t−1` apply to returns at `t`. Getting this wrong is
+- **One-step lag.** Weights formed at $t-1$ apply to returns at $t$. Getting this wrong is
   lookahead bias and silently inflates every result.
 
 ### Volatility scaling and transaction costs (Equation 7)
 
-```
-Eq 7    R_p,t = Σ_i (σ_tgt/σ_{i,t-1}) · w_{i,t-1} · r_{i,t}
-              − C · Σ_i | (σ_tgt/σ_{i,t-1})·w_{i,t-1} − (σ_tgt/σ_{i,t-2})·w_{i,t-2} |
+```math
+R_{p,t} = \sum_{i=1}^{n} \frac{\sigma_{\text{tgt}}}{\sigma_{i,t-1}} \, w_{i,t-1} \, r_{i,t}
+\;-\; C \sum_{i=1}^{n} \left| \frac{\sigma_{\text{tgt}}}{\sigma_{i,t-1}} \, w_{i,t-1}
+- \frac{\sigma_{\text{tgt}}}{\sigma_{i,t-2}} \, w_{i,t-2} \right| \tag{7}
 ```
 
-- **σ_tgt = 0.10** (10% annualized) in every scaled result.
-- **σᵢ,ₜ₋₁** is an ex-ante estimate: exponentially weighted moving standard deviation, **50-day
-  window**, on `r_{i,t}`. *The EWM decay parameter is not given.*
+- $\sigma_{\text{tgt}} = 0.10$ (10% annualized) in every scaled result.
+- $\sigma_{i,t-1}$ is an ex-ante estimate: exponentially weighted moving standard deviation, **50-day
+  window**, on $r_{i,t}$. *The EWM decay parameter is not given.*
 - Cost is proportional to the daily change in **vol-scaled** traded value. Linear costs only — no
   bid-ask model, no market impact, no slippage.
-- **C ∈ {0.01%, 0.1%}** — i.e. 1bp and 10bp. (The paper writes `(=1bs=0.0001)`; "bs" for basis
+- $C$ is 0.01% or 0.1% ($C = 0.0001$ or $C = 0.001$) — i.e. 1bp and 10bp. (The paper writes `(=1bs=0.0001)`; "bs" for basis
   point is nonstandard but 1bp = 0.01% is unambiguous.)
 
 Note that cost is charged on the *vol-scaled* position change, so volatility scaling itself
@@ -200,7 +234,7 @@ Allocations 1–4 are fixed-ratio pension-fund-style strategies, **rebalanced an
 | DWP | 0.051 | 0.102 | 0.493 | 0.067 | 0.740 | 0.179 | 0.549 | 1.107 |
 | **DLS** | **0.313** | 0.168 | **1.858** | 0.099 | **3.135** | 0.102 | 0.537 | **1.518** |
 
-### Panel B — Volatility scaled (σ_tgt = 0.10), C = 0.01% — **the headline**
+### Panel B — Volatility scaled ($\sigma_{\text{tgt}} = 0.10$), C = 0.01% — **the headline**
 
 | Model | E(R) | Std(R) | Sharpe | DD(R) | Sortino | MDD | %+Ret | P/L |
 |---|---|---|---|---|---|---|---|---|
@@ -259,7 +293,13 @@ spiked — which the authors credit for the small drawdown.
 
 ### Sensitivity analysis (§4.6)
 
-`Eq 8: S_i = (dL/dx_i) / max_j |dL/dx_j|` (following Moody & Saffell). Feature importance varies
+Equation 8 follows Moody & Saffell:
+
+```math
+S_i = \frac{dL / dx_i}{\max_j \left| dL / dx_j \right|} \tag{8}
+```
+
+Feature importance varies
 over time, but **the most recent observations consistently dominate** — which the authors suggest
 means a shorter lookback than 50 days may suffice. (As printed, Eq 8 lacks an absolute value in the
 numerator despite being called "absolute normalised sensitivity"; likely a typesetting slip.)
@@ -280,7 +320,7 @@ The paper does not specify all inputs needed for an exact independent replay. Th
 | 5 | Data source & adjustment | Original snapshot unavailable; provider/adjustment candidates and prior figures remain unverified. [Investigation](FINDING-DATA-SOURCING.md) | High |
 | 6 | Validation split construction | Chronological vs random. Random leaks | 🟠 High |
 | 7 | Annualization factor | 252 / 260 / 365 never given | 🟠 High |
-| 8 | Learning rate | Symbolic α only | 🟡 Medium |
+| 8 | Learning rate | Symbolic $\alpha$ only | 🟡 Medium |
 | 9 | EWM decay for volatility | Only the 50-day window is given | 🟡 Medium |
 | 10 | Retrain specifics | Boundary dates, warm-start vs re-init | 🟡 Medium |
 | 11 | Sequence output convention | Many-to-one vs per-timestep | 🟡 Medium |
