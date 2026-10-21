@@ -1,0 +1,3 @@
+- [x] 1.1 Add the model, training plan and purpose overview to the README and remove its status text.
+- [x] 1.2 Move the run commands from the README into docs/RUNNING.md with macOS/Linux equivalents.
+- [x] 2.1 Validate, record, commit, push and open a pull request.
