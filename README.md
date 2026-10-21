@@ -11,7 +11,7 @@ The usual approach has two separate steps:
 1. **Forecast.** Estimate each asset's expected return and how assets move together (their covariance), usually from recent history or a separate prediction model.
 2. **Optimize.** Feed those estimates into an optimizer, classically Markowitz mean-variance, which picks the weights with the best expected return for the risk taken.
 
-The weak point is the handoff between the steps. The forecast is trained to be accurate, not to produce a good portfolio, and small forecast errors can swing the optimizer to extreme weights. Simpler alternatives, like fixed splits such as 60% stocks / 40% bonds rebalanced on a schedule, avoid forecasting entirely but never adapt to the market.
+The weak point is the handoff between the steps. The forecast is trained to be accurate, not to produce a good portfolio, and small forecast errors can swing the optimizer to extreme weights. Simpler alternatives, like fixed splits such as 60% stocks / 40% bonds rebalanced on a schedule, avoid forecasting entirely but never adapt to the market. A plain-language walkthrough with a worked example is in [the paper background](docs/PAPER-BACKGROUND.md#11-plain-language-walkthrough-forecast-then-optimize-versus-end-to-end).
 
 ## How this model works
 
