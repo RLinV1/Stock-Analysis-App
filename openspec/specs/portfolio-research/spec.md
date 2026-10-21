@@ -33,3 +33,43 @@ Lookback SHALL be a whole number of at least two observations. A final evaluatio
 #### Scenario: Future prices are changed
 - **WHEN** prices after a fold's evaluation end are changed
 - **THEN** every sample, target and fitted scaler for that fold remains unchanged
+
+### Requirement: Compare finished walk-forward runs with classical mean-variance
+A finished walk-forward run SHALL be comparable with a long-only, fully invested, maximum-Sharpe mean-variance portfolio re-estimated daily from the previous 50 daily returns, using the run's own dataset snapshot, test dates, target returns, cost and continuous accounting. The comparison SHALL refuse to write unless recomputed recorded strategies match the run report exactly, and SHALL create a new output file without modifying the run.
+
+#### Scenario: Compare a completed run
+- **WHEN** a caller compares a completed walk-forward run
+- **THEN** the output SHALL list every recorded strategy's metrics unchanged plus mean-variance metrics over the same number of test days
+
+#### Scenario: Weights use only prior data
+- **WHEN** prices on or after a target day change
+- **THEN** the mean-variance weights for that target day SHALL be unchanged
+
+#### Scenario: Output exists
+- **WHEN** the comparison output file already exists
+- **THEN** the command SHALL fail without overwriting it
+
+### Requirement: Acquire Yahoo history as hashed local snapshots
+Historical acquisition SHALL download each ticker's daily history with explicit adjustment, action, repair and date options, retain the exact downloaded bytes with SHA-256 hashes, record the client version, query and retrieval time, and write only to a new local directory that is never committed.
+
+#### Scenario: Fetch a tier
+- **WHEN** a caller fetches tier1 or tier2 with explicit start and end dates
+- **THEN** the output SHALL contain each ticker's raw CSV, an acquisition record with hashes and query, and a dataset manifest accepted by the existing loader
+
+#### Scenario: Output already exists
+- **WHEN** the output directory already exists
+- **THEN** acquisition SHALL fail before downloading or replacing anything
+
+### Requirement: Build total-return prices before aligning dates
+Each ticker's price series SHALL be a total-return index compounded from split-adjusted close plus same-day distributions, computed on that ticker's own calendar before keeping only dates every ticker traded. Missing, nonpositive or nonfinite values SHALL be rejected, never filled, and the number of dropped dates SHALL be recorded as a deviation.
+
+#### Scenario: Distribution on a date another ticker lacks
+- **WHEN** a ticker pays a distribution on a date missing for another ticker
+- **THEN** the distribution SHALL still be included in that ticker's next retained return
+
+### Requirement: Label tier and source limits
+Every Yahoo dataset SHALL declare that it is a reconstruction rather than the authors' data, that raw ^VIX is not investable (tier1) or that VIXY replaces VIX with history from 2011 (tier2), and that close prices carry hindsight split adjustment.
+
+#### Scenario: Tier 1 manifest
+- **WHEN** tier1 data is written
+- **THEN** its deviations SHALL state that the raw VIX index is not investable

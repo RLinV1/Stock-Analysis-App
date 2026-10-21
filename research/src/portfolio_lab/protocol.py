@@ -58,7 +58,8 @@ def _dates(values: Sequence[str]) -> tuple[str, ...]:
         _date(value)
         if index and result[index - 1] >= value:
             raise ValueError("Dates must be strictly increasing without duplicates")
-    return result
+    # numpy.str_ passes isinstance(str) but pickles as a numpy global that weights-only loads reject.
+    return tuple(str(value) for value in result)
 
 
 def _lookback(value: int) -> None:

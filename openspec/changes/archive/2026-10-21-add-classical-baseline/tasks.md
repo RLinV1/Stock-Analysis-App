@@ -1,0 +1,4 @@
+- [x] 1.1 Add the exact long-only maximum-Sharpe solver and daily 50-day mean-variance weights.
+- [x] 1.2 Add the `compare` command with exact accounting self-check and exclusive output.
+- [x] 2.1 Add tests, including a SciPy cross-check, and pin SciPy for tests.
+- [x] 2.2 Compare all four Yahoo walk-forward runs and record results in docs/RESULTS.md.
