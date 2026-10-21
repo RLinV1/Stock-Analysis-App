@@ -63,7 +63,7 @@ def total_return_series(content: bytes) -> dict[str, float]:
     for row in rows:
         day = date.fromisoformat(row["Date"][:10]).isoformat()
         close = _number(row, "Close", required=True)
-        # shortcut: assumes Yahoo never repeats a capital gain inside Dividends; verify on real ETF data before A1 claims.
+        # shortcut: adds both payout columns; capital gains were all zero for these four ETFs in the 2026-10-20 fetch, recheck before adding tickers.
         paid = _number(row, "Dividends", required=False) + _number(row, "Capital Gains", required=False)
         if close <= 0 or paid < 0:
             raise ValueError(f"Invalid close or distribution on {day}")
