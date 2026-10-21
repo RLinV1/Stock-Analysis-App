@@ -1,0 +1,2 @@
+- [x] 1.1 Return plain `str` dates from the shared planner validator.
+- [x] 2.1 Rerun the failing and related tests, then the full research suite.
