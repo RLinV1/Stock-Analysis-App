@@ -46,6 +46,52 @@ So they **delete the forecasting step**. A neural network maps market history di
 weights, trained by gradient *ascent* on the Sharpe ratio itself. The thing you care about is the
 thing you optimize.
 
+### In plain terms: the usual approach vs this paper
+
+**The usual approach: predict first, then decide.**
+
+1. Look at the past and make a forecast: how much each asset will probably earn, how risky each
+   one is, and which ones tend to move together.
+2. Hand that forecast to an optimizer (Markowitz's math), which picks the mix with the most return
+   for the risk taken. Most of the benefit is diversification: assets that don't move together
+   partly cancel each other's swings.
+
+The forecast is graded against what the market actually did ("predicted 1%, got 0.8%, close
+enough"). Nobody grades it on whether the portfolio built from it was any good. Risk is fairly
+predictable, but returns are not, and small return errors can push the optimizer into extreme,
+unstable portfolios.
+
+**The paper: skip the prediction and decide directly.**
+
+1. Show the model the last 50 days of market data.
+2. The model outputs the portfolio itself, for example 60% bonds, 30% stocks, 10% commodities.
+3. It is graded only on how well that portfolio did for its risk (the Sharpe ratio), and that grade
+   is what improves the model. Over years of examples it learns which market patterns call for
+   which portfolio, without ever stating a forecast.
+
+**An everyday comparison: picking what to wear.**
+
+- *Usual approach:* a weather forecaster predicts 20°C and a 30% chance of rain, and a fixed rule
+  turns that into an outfit. The forecaster is graded on the temperature, not on whether you were
+  comfortable. If it is really 15°C, the rule still hands you a t-shirt.
+- *Paper's approach:* someone looks at the last 50 days of weather and just picks the outfit, and
+  is graded only on whether you were comfortable. They learn "when the week looked like this, a
+  jacket worked out" without ever naming a temperature.
+
+| | Usual approach | This paper |
+|---|---|---|
+| Past data goes to | A forecast of returns and risk | Straight to the portfolio |
+| How weights are chosen | A separate optimizer | The model's own output |
+| What gets graded | Was the forecast accurate? | Did the portfolio do well for its risk? |
+
+**In one line:** the usual way answers "what will happen?" and builds a portfolio from that guess;
+the paper answers "what portfolio works best when the market looks like this?"
+
+**The trade-off.** Training on the real goal lets the model react to patterns a simple forecast
+misses. But its reasoning can't be inspected, it can learn patterns that were only luck (which is
+why it must be tested on years it never saw), and it ignores trading costs while training, which
+matters because it rebalances daily.
+
 Three supporting design choices:
 
 1. **Trade index ETFs, not individual stocks.** The index universe is small (vs ~5000 US equities)
