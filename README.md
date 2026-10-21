@@ -2,13 +2,49 @@
 
 A mobile experiment lab for reproducible portfolio-learning research, developed as Portfolio Lab.
 
-**Current state:** the Python/PyTorch prototype supports bounded synthetic training, checkpoint recovery, Git revision metadata and saved-experiment repeat comparison. Retained synthetic repeat/resume matched exactly; see [A0 evidence](docs/A0-EVIDENCE.md). Spring Boot implements authenticated submit/status/cancel/list and verified artifact/report/equity/allocations routes at source/unit level; a PostgreSQL-backed Python worker and Compose configuration exist. The Android/web client has 91 component/contract tests, clean TypeScript/lint and Android/web exports. Java startup/repository and Python worker PostgreSQL checks pass. A real browser/API/PostgreSQL connect/list/submit/status/cancel smoke and separate mocked Results rendering review pass as of 2026-10-15. API/worker image builds, non-root migration/API/database restart and an offline worker child also pass; [container evidence](docs/evidence/container-images-2026-10-15/README.md) records limits. S3/worker publication, full Compose, physical Android, historical reproduction and K3s remain unverified. [The handoff](openspec/HANDOFF.md) records current checks and blockers.
+It tests one idea from the paper [Deep Learning for Portfolio Optimization](https://arxiv.org/html/2005.13665v3) (Zhang, Zohren and Roberts, 2020): instead of predicting the market and then building a portfolio from those predictions, train a neural network to choose the portfolio directly. The project reproduces that method, tests it on newer data through 2026, and lets you launch and review experiments from a phone.
 
-## What this investigates
+## How portfolios are normally built
 
-Current uncommitted research edits change the runner/repeat source and add walk-forward, sweep, synthetic learnability and explicit local normalization/objective-window controls. They have **not been imported, tested or run** under the current file-only instruction. The evidence above predates those edits; it does not establish current-source compatibility or completed A1 capabilities.
+The usual approach has two separate steps:
 
-[Deep Learning for Portfolio Optimization](https://arxiv.org/html/2005.13665v3) trains a network to output portfolio allocations directly. This project will compare its method with baselines, disclose assumptions, and report results across seeds whether or not they match the paper.
+1. **Forecast.** Estimate each asset's expected return and how assets move together (their covariance), usually from recent history or a separate prediction model.
+2. **Optimize.** Feed those estimates into an optimizer, classically Markowitz mean-variance, which picks the weights with the best expected return for the risk taken.
+
+The weak point is the handoff between the steps. The forecast is trained to be accurate, not to produce a good portfolio, and small forecast errors can swing the optimizer to extreme weights. Simpler alternatives, like fixed splits such as 60% stocks / 40% bonds rebalanced on a schedule, avoid forecasting entirely but never adapt to the market.
+
+## How this model works
+
+The paper removes the forecasting step. One network goes straight from recent market history to portfolio weights, and it is trained on the thing an investor actually cares about: risk-adjusted return.
+
+- **Assets:** four ETFs, one per asset class: VTI (US stocks), AGG (US bonds), DBC (commodities) and a volatility asset (the VIX index, or the tradable VIXY fund).
+- **Input:** the last 50 trading days of each asset's price and daily return.
+- **Network:** a single LSTM layer with 64 units, a type of recurrent network that reads the 50 days in order and summarizes them.
+- **Output:** a softmax layer that turns the summary into four weights that are all zero or positive and add up to 100%. That is a long-only portfolio with no leverage and no short selling.
+- **Objective:** the [Sharpe ratio](docs/PAPER-BACKGROUND.md#4-the-objective-function) of the portfolio's returns, meaning average return divided by its volatility. The network adjusts itself to make this as high as possible.
+- **No peeking ahead:** weights chosen with data up to day t−1 are scored only on day t's returns.
+
+So the model never predicts a price. It learns, for example, to move into bonds when its inputs look like the start of a stock sell-off, because doing so improved the Sharpe ratio on its training data.
+
+## How we'll train it and what we'll use
+
+- **Data:** daily Yahoo Finance history from 2006 to October 2026, downloaded with yfinance and stored locally with file hashes so every run can be traced to its exact inputs. Prices include reinvested dividends. See [historical data](docs/HISTORICAL-DATA.md).
+- **Code:** Python 3.12 and PyTorch, on this PC's CPU at first.
+- **Settings:** the paper's values where it states them, the project's recorded defaults where it does not: Adam optimizer, learning rate 0.001, batches of 64 days, up to 100 passes over the training data. Inputs are standardized using training-period statistics only.
+- **Walk-forward retraining:** train on all data before a test period, hold back the last 10% of it to pick the best training pass, then test on the next two years the model has never seen. Move forward two years and repeat. Stitching the test periods together gives one continuous out-of-sample result, the same protocol the paper uses.
+- **Two test windows:** the paper's own (2011 to April 2020) and an extended one through 2026, each run with the VIX index and with VIXY.
+- **Fair comparison:** every strategy pays the same trading cost (1 or 10 basis points per unit of turnover). The model is compared against simple strategies and against itself across several random seeds, which the paper did not report.
+- **Later:** the same training runs as background jobs. The phone app submits a job to the Spring Boot API, a Python worker trains it, and results come back as equity curves and allocation charts.
+
+## Why this project exists
+
+The paper reports a Sharpe ratio of 1.96, well ahead of its comparison strategies, but it does not publish its data or code, reports one run with no variation between seeds, and names "VIX" as an asset even though the index itself cannot be bought. This project asks three questions:
+
+1. Does the method reproduce when every unstated choice is written down?
+2. How much do results vary from one training run to the next?
+3. Does it still work with a volatility fund you can actually trade, and on the years after the paper (2020-2026)?
+
+Results get reported whether or not they match the paper. This is a research tool, not investment advice or a trading system. What is built and verified so far is tracked in [the handoff](openspec/HANDOFF.md).
 
 The paper's volatility-series identity and several implementation details need clarification. The local audit notes contain observations that have not been independently reproduced from saved scripts and manifests. They are hypotheses to investigate, not established flaws in the paper.
 
