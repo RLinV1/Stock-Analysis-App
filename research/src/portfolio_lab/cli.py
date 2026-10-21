@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from .classical import compare_run
 from .data import load_dataset, synthetic_dataset
 from .json_io import load_json, load_json_object
 from .runner import RunConfig, run_experiment
@@ -56,10 +57,15 @@ def main() -> None:
     fetch.add_argument("output", type=Path, help="New directory, e.g. data/yahoo/tier1-2026-10-21")
     fetch.add_argument("--start", required=True, help="First date to request, YYYY-MM-DD")
     fetch.add_argument("--end", required=True, help="Exclusive end date, YYYY-MM-DD")
+    compare = commands.add_parser("compare", help="Add the classical mean-variance baseline to a finished walk-forward run")
+    compare.add_argument("run", type=Path, help="Completed walk-forward run directory")
+    compare.add_argument("--output", type=Path, required=True, help="New comparison JSON file")
     args = parser.parse_args()
     try:
         if args.command == "synthetic":
             print(synthetic_dataset(args.output, args.observations))
+        elif args.command == "compare":
+            print(compare_run(args.run, args.output))
         elif args.command == "fetch-yahoo":
             print(fetch_tier(args.tier, args.start, args.end, args.output))
         elif args.command == "repeat":

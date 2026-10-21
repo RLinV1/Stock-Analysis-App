@@ -5,3 +5,4 @@ psutil==7.0.0
 filelock==3.32.6
 pytest==8.4.2
 setuptools==80.9.0
+scipy==1.16.2

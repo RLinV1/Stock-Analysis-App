@@ -104,6 +104,74 @@ Three supporting design choices:
 3. **Not reinforcement learning.** They note the resemblance but argue RL maximizes expected
    cumulative reward (profit), and Sharpe ratio cannot be directly optimized in that framing.
 
+### 1.1 Plain-language walkthrough: forecast-then-optimize versus end-to-end
+
+This subsection explains the argument in section 1 without assuming finance background. It is
+explanatory, not a result. Figures in the example are invented for illustration and were worked by
+hand, not produced by project code.
+
+**The classical pipeline, applied to this project's four ETFs (VTI, AGG, DBC, VIX/VIXY).**
+
+1. *Forecast.* Estimate an expected return for each asset (the simplest forecast is the average of
+   the last year or so; a trained prediction model is a fancier option) and estimate each asset's
+   volatility and how pairs of assets move together (the covariance).
+2. *Optimize.* Give those estimates to a mean-variance optimizer, which solves for the long-only
+   weights with the best expected return for the risk. It treats the estimates as true.
+
+A forecasting model, if one is used, is trained and graded on how close its guesses are to what
+actually happened. Nothing grades it on how good the resulting portfolio is, and the two can differ:
+two forecasters with the same average error can produce very different portfolios if one of them is
+badly wrong about a single asset the optimizer then leans on.
+
+**Worked example of the fragility.** Two stocks A and B, both 20% annual volatility, correlation 0.9.
+For a max-Sharpe portfolio with equal volatilities the weights are proportional to
+`(μA − 0.9·μB, μB − 0.9·μA)`, where μ is the forecast expected return.
+
+| Forecast (A, B) | Weights before normalizing | Resulting split (A / B) |
+|---|---|---|
+| 8.0%, 7.5% | 1.25, 0.30 | 81% / 19% |
+| 8.0%, 8.5% | 0.35, 1.30 | 21% / 79% |
+
+A one-point change in one forecast flips the portfolio. When assets move almost together, the
+optimizer reads a tiny forecast difference as a strong preference. Real return forecasts are noisier
+than one point. Practitioners reduce this with shrinkage, per-asset weight caps, or blending with a
+fixed split such as 60/40; those work without a neural network.
+
+**How the end-to-end model is trained instead.** There is no return forecast and no separate
+optimizer; the network outputs the split directly.
+
+1. Pick a past date and show the network only the previous 50 days of prices and returns.
+2. It outputs weights (softmax: zero or positive, summing to 100%).
+3. Score those weights on the next day's actual returns, preserving the one-step lag in section 4.
+4. After a batch of days (64 by default; `objective_window` can instead score all training days), compute
+   the Sharpe ratio of the batch's portfolio returns and nudge the network to raise it. The `Adam`
+   optimizer in the code updates network parameters; it does not choose portfolio weights.
+5. After each pass over the training data, score the model on a held-back 10% validation slice and
+   keep the best pass.
+6. Test on the next two years, which the model never saw, then move the window forward and repeat.
+
+The model never learns "what will happen". It learns which splits, given which recent patterns,
+would have scored well in the past, and bets that those patterns repeat.
+
+**What this changes and what it does not.**
+
+- *Changed:* the training signal. The classical forecaster is trained on prediction error, a
+  stepping stone; the network is trained on portfolio Sharpe, the quantity the investor cares about.
+  A noisy signal that hurts the portfolio is penalized during training.
+- *Not changed:* the data is as noisy as before, so the network can still fit luck. Nothing in the
+  code caps a single weight, so softmax can still concentrate in one asset. The training loss uses
+  gross returns, so the network is not trained to avoid turnover (costs apply at evaluation only;
+  see risk #4 in section 7). It is also harder to inspect than a forecast and an explicit optimizer.
+- *Open question:* whether better aim beats the simple classical fixes above in practice. The paper
+  reports Sharpe 1.962 from one run with no published code or seed variance (risk #14); this
+  project exists to test that.
+
+**What the repo implements.** The research runner implements the end-to-end network and two simple
+baselines (daily equal-weight and 60/40). A classical forecast-then-optimize baseline is not
+implemented in the research code, so no result here compares against it. The paper's MV baseline
+(section 6) is a transcription of the paper, not a project run. Nothing in this subsection is
+investment advice.
+
 ---
 
 ## 2. The universe

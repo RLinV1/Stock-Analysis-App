@@ -1,6 +1,6 @@
 # Historical data through 2026
 
-Status 2026-10-21: both tiers were downloaded through 2026-10-20 and verified (below). **No model has been trained on them yet** (the user asked to hold off), so nothing here is a model result.
+Status 2026-10-21: both tiers were downloaded through 2026-10-20 and verified (below). All four walk-forward runs have been trained and compared with classical mean-variance; see **[RESULTS.md](RESULTS.md)**.
 
 ## Downloaded snapshots (local only, git-ignored)
 
@@ -28,7 +28,7 @@ All four use VTI (stocks), AGG (bonds) and DBC (commodities) plus the volatility
 
 ## Decisions and why
 
-The full reasoning, with risks, is in the [design record](../openspec/changes/add-yahoo-historical-data/design.md). In short:
+The full reasoning, with risks, is in the [design record](../openspec/changes/archive/2026-10-21-add-yahoo-historical-data/design.md). In short:
 
 1. **Yahoo via yfinance** (your choice): free and covers 2006 onward. Yahoo does not allow redistribution, so downloads stay in git-ignored `data/` and are never committed.
 2. **"Paper data" is a reconstruction.** The authors never published their dataset. Same tickers and dates from Yahoo is the closest honest stand-in, so a match or miss against the paper's Sharpe 1.962 does not prove or disprove the paper.
@@ -40,7 +40,7 @@ The full reasoning, with risks, is in the [design record](../openspec/changes/ad
 
 ## How to run
 
-Install the optional data extra once (see [RUNNING.md](RUNNING.md) for creating `.venv` on each OS), then download both tiers. `--end` is exclusive: set it to today's date so a possibly incomplete bar for today is left out. The snapshots above used `--end 2026-10-21`. Each output folder must be new, so pick a fresh name for a re-fetch. The walk-forward commands train the model; they have not been run yet.
+Install the optional data extra once (see [RUNNING.md](RUNNING.md) for creating `.venv` on each OS), then download both tiers. `--end` is exclusive: set it to today's date so a possibly incomplete bar for today is left out. The snapshots above used `--end 2026-10-21`. Each output folder must be new, so pick a fresh name for a re-fetch. The walk-forward commands train the model on CPU.
 
 Windows (PowerShell):
 
@@ -62,13 +62,21 @@ $py -m portfolio_lab.cli fetch-yahoo tier2 data/yahoo/tier2-2026-10-20 --start 2
 $py -m portfolio_lab.cli walk-forward data/yahoo/tier1-2026-10-20/dataset/manifest.json --config research/configs/walk-forward-tier1-paper.json --output runs/tier1-paper
 ```
 
-Repeat the last command with the other three configs (`walk-forward-tier1-2026`, `walk-forward-tier2-paper` with the tier2 manifest, `walk-forward-tier2-2026`). Each output directory must be new; nothing is overwritten. Each fetch writes:
+Repeat the last command with the other three configs (`walk-forward-tier1-2026`, `walk-forward-tier2-paper` with the tier2 manifest, `walk-forward-tier2-2026`). Each output directory must be new; nothing is overwritten.
+
+Then add the classical mean-variance baseline to a finished run. `RUN` is the `walk-forward-…` folder the training command printed; the output file must not exist yet. In PowerShell, start the line with `& `:
+
+```bash
+$py -m portfolio_lab.cli compare RUN --output runs/tier1-paper-comparison.json
+```
+
+Each fetch writes:
 
 - `raw/<ticker>.csv`: the exact bytes yfinance returned
 - `acquisition.json`: query options, yfinance version, retrieval time and SHA-256 of every raw file
 - `dataset/manifest.json` and `dataset/prices.csv`: the validated dataset the model reads
 
-Training time on CPU has not been measured for these sizes: about 100 epochs per fold across five to eight folds per run.
+Training time on this PC's CPU, one thread per run: 4 to 14 minutes per run ([timings](RESULTS.md#reproduce)).
 
 ## Known limits
 
