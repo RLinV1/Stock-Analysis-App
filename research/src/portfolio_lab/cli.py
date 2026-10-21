@@ -10,6 +10,7 @@ from .runner import RunConfig, run_experiment
 from .repeat import repeat_experiment
 from .service_contract import execute_synthetic_request, load_request
 from .walk_forward import WalkForwardConfig, run_walk_forward
+from .yahoo import TIERS, fetch_tier
 
 
 def _run_config(settings: object) -> RunConfig:
@@ -50,10 +51,17 @@ def main() -> None:
     walk.add_argument("--config", type=Path, required=True,
                       help="Complete WalkForwardConfig JSON; no new numerical defaults are adopted")
     walk.add_argument("--output", type=Path, default=Path("runs"))
+    fetch = commands.add_parser("fetch-yahoo", help="Download a SPEC tier from Yahoo into a new local snapshot")
+    fetch.add_argument("tier", choices=sorted(TIERS))
+    fetch.add_argument("output", type=Path, help="New directory, e.g. data/yahoo/tier1-2026-10-21")
+    fetch.add_argument("--start", required=True, help="First date to request, YYYY-MM-DD")
+    fetch.add_argument("--end", required=True, help="Exclusive end date, YYYY-MM-DD")
     args = parser.parse_args()
     try:
         if args.command == "synthetic":
             print(synthetic_dataset(args.output, args.observations))
+        elif args.command == "fetch-yahoo":
+            print(fetch_tier(args.tier, args.start, args.end, args.output))
         elif args.command == "repeat":
             comparison_path = repeat_experiment(args.reference, args.output)
             print(comparison_path)
