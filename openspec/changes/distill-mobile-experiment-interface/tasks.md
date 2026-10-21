@@ -1,0 +1,5 @@
+- [ ] 1.1 Apply the existing frontend-design and Impeccable distill/polish guidance with the preserved Android/web design constraints.
+- [ ] 1.2 Simplify page framing/header and align primary actions with the current service state without changing functional behavior.
+- [ ] 2.1 Run client typecheck, lint and existing component/contract checks; repair regressions in scope.
+- [ ] 2.2 Review bounded rendered app states if permitted, record evidence and limitations, and update implementation/handoff immediately.
+- [ ] 3.1 Validate and archive the completed UI change; include the accepted refinement in publication.

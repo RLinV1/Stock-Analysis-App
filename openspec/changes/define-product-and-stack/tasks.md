@@ -99,3 +99,8 @@ The review ran 17 existing tests successfully. These document corrections change
 - [x] 11.1 Write docs/REQUIREMENTS-COVERAGE.md mapping accepted/proposed/deferred requirements, evidence, owners and remaining gates.
 - [x] 11.2 Reconcile stale implementation-status statements without promoting source to runtime evidence.
 - [x] 11.3 Record source-only review and pending checks; validate links/OpenSpec when process execution is permitted.
+## 12. Source/evidence reconciliation — 2026-10-17
+
+- [ ] 12.1 Reconcile DESIGN, README and requirements coverage with bounded prior database/browser/image evidence and current unverified research source; condense HANDOFF without dropping decisions/gates.
+- [ ] 12.2 After process authorization, validate OpenSpec/links and actual source status before claiming this documentation reconciliation verified. Preserve prior records and all unresolved acceptance gates.
+- [ ] 12.3 Reconcile normalization/window/cost/learnability guides and research/service coverage with current source, then verify documentation/OpenSpec when authorized. Preserve prior evidence scopes, unchecked empirical gates and valid-method versus input-validation distinctions.

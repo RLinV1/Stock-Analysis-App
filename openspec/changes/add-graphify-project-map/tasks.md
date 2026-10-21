@@ -1,0 +1,5 @@
+- [x] 1.1 Install the existing package's Codex skill and verify its version and reference files.
+- [x] 1.2 Detect the corpus and resolve any required Graphify size warning before extraction.
+- [x] 2.1 Extract the authorized corpus and generate graph JSON, interactive HTML, and an audit report, naming only important communities.
+- [x] 2.2 Verify graph structure/coverage, record integrity limitations and the user-stopped HTML check, and update handoff. Rendered verification was canceled by the user.
+- [ ] 3.1 Validate and archive this change once all required work and checks are complete.
