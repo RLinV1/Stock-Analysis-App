@@ -129,29 +129,29 @@ Sharpe ratio, **maximized** by gradient ascent. Risk-free rate omitted "for simp
 authors' words, an acknowledged simplification).
 
 ```math
-L = \frac{\mathbb{E}(R_p)}{\mathrm{Std}(R_p)} \tag{1}
+L = \frac{\mathbb{E}(R_p)}{\mathrm{Std}(R_p)} \qquad (1)
 ```
 
 ```math
 L_T = \frac{\mathbb{E}(R_{p,t})}{\sqrt{\mathbb{E}(R_{p,t}^2) - \left(\mathbb{E}(R_{p,t})\right)^2}},
 \qquad
-\mathbb{E}(R_{p,t}) = \frac{1}{T} \sum_{t=1}^{T} R_{p,t} \tag{2}
+\mathbb{E}(R_{p,t}) = \frac{1}{T} \sum_{t=1}^{T} R_{p,t} \qquad (2)
 ```
 
 ```math
 R_{p,t} = \sum_{i=1}^{n} w_{i,t-1} \, r_{i,t},
 \qquad
-r_{i,t} = \frac{p_{i,t}}{p_{i,t-1}} - 1 \tag{3}
+r_{i,t} = \frac{p_{i,t}}{p_{i,t-1}} - 1 \qquad (3)
 ```
 
 ```math
-w_{i,t} = f(\theta \mid x_t) \tag{4}
+w_{i,t} = f(\theta \mid x_t) \qquad (4)
 ```
 
 Equation 6 is a gradient **ascent** step:
 
 ```math
-\theta_{\text{new}} := \theta_{\text{old}} + \alpha \, \frac{\partial L_T}{\partial \theta} \tag{6}
+\theta_{\text{new}} := \theta_{\text{old}} + \alpha \, \frac{\partial L_T}{\partial \theta} \qquad (6)
 ```
 
 Two details that matter for implementation:
@@ -166,7 +166,7 @@ Two details that matter for implementation:
 ```math
 R_{p,t} = \sum_{i=1}^{n} \frac{\sigma_{\text{tgt}}}{\sigma_{i,t-1}} \, w_{i,t-1} \, r_{i,t}
 \;-\; C \sum_{i=1}^{n} \left| \frac{\sigma_{\text{tgt}}}{\sigma_{i,t-1}} \, w_{i,t-1}
-- \frac{\sigma_{\text{tgt}}}{\sigma_{i,t-2}} \, w_{i,t-2} \right| \tag{7}
+- \frac{\sigma_{\text{tgt}}}{\sigma_{i,t-2}} \, w_{i,t-2} \right| \qquad (7)
 ```
 
 - $\sigma_{\text{tgt}} = 0.10$ (10% annualized) in every scaled result.
@@ -296,7 +296,7 @@ spiked — which the authors credit for the small drawdown.
 Equation 8 follows Moody & Saffell:
 
 ```math
-S_i = \frac{dL / dx_i}{\max_j \left| dL / dx_j \right|} \tag{8}
+S_i = \frac{dL / dx_i}{\max_j \left| dL / dx_j \right|} \qquad (8)
 ```
 
 Feature importance varies
