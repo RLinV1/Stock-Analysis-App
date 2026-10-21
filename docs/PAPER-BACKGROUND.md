@@ -129,7 +129,7 @@ Sharpe ratio, **maximized** by gradient ascent. Risk-free rate omitted "for simp
 authors' words, an acknowledged simplification).
 
 ```math
-L = \frac{\mathbb{E}(R_p)}{\operatorname{Std}(R_p)} \tag{1}
+L = \frac{\mathbb{E}(R_p)}{\mathrm{Std}(R_p)} \tag{1}
 ```
 
 ```math
