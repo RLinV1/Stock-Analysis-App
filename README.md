@@ -1,10 +1,12 @@
-# Portfolio Lab
+# Stock-Analysis-App
 
-A mobile experiment lab for reproducible portfolio-learning research.
+A mobile experiment lab for reproducible portfolio-learning research, developed as Portfolio Lab.
 
 **Current state:** the Python/PyTorch prototype supports bounded synthetic training, checkpoint recovery, Git revision metadata and saved-experiment repeat comparison. Retained synthetic repeat/resume matched exactly; see [A0 evidence](docs/A0-EVIDENCE.md). Spring Boot implements authenticated submit/status/cancel/list and verified artifact/report/equity/allocations routes at source/unit level; a PostgreSQL-backed Python worker and Compose configuration exist. The Android/web client has 91 component/contract tests, clean TypeScript/lint and Android/web exports. Java startup/repository and Python worker PostgreSQL checks pass. A real browser/API/PostgreSQL connect/list/submit/status/cancel smoke and separate mocked Results rendering review pass as of 2026-10-15. API/worker image builds, non-root migration/API/database restart and an offline worker child also pass; [container evidence](docs/evidence/container-images-2026-10-15/README.md) records limits. S3/worker publication, full Compose, physical Android, historical reproduction and K3s remain unverified. [The handoff](openspec/HANDOFF.md) records current checks and blockers.
 
 ## What this investigates
+
+Current uncommitted research edits change the runner/repeat source and add walk-forward, sweep, synthetic learnability and explicit local normalization/objective-window controls. They have **not been imported, tested or run** under the current file-only instruction. The evidence above predates those edits; it does not establish current-source compatibility or completed A1 capabilities.
 
 [Deep Learning for Portfolio Optimization](https://arxiv.org/html/2005.13665v3) trains a network to output portfolio allocations directly. This project will compare its method with baselines, disclose assumptions, and report results across seeds whether or not they match the paper.
 
@@ -44,6 +46,10 @@ $env:PYTHONPATH = (Join-Path (Get-Location).Path 'research\src')
 
 The command prints the completed run directory. It retains `request.json`, `request.sha256`, the copied generated dataset and the A0 report. The [closed request schema](contracts/synthetic-run-request.v1.schema.json) permits only small synthetic CPU jobs; its hash identifies the request for future idempotency work, not v2 reproducibility. This command runs locally without an HTTP API, database or container.
 
+## Experimental walk-forward source
+
+The current uncommitted research draft adds explicit fold-aware training, local group orchestration, continuous boundary accounting and a separate CLI. It was written under a code-only/no-process instruction and has **not been run or verified**. Earlier A0, container and planner evidence does not validate this draft. See [walk-forward status and limitations](docs/WALK-FORWARD.md) and the [active implementation record](openspec/changes/add-walk-forward-training/implementation.md); no trained walk-forward model, historical finding or completed research milestone is claimed.
+
 To exercise a completed-epoch interruption and resume with the same dataset:
 
 ```powershell
@@ -65,6 +71,10 @@ These commands use synthetic data and the small default 64-unit/50-observation C
 - [Backend scaffold and tests](backend/README.md)
 - [Paper background](docs/PAPER-BACKGROUND.md)
 - [Implemented numerical deviations](docs/REPRODUCTION.md)
+- [Unrun controlled learnability gate](docs/SYNTHETIC-LEARNABILITY.md)
+- [Unrun explicit normalization controls](docs/NORMALIZATION-DIAGNOSTIC.md)
+- [Unrun explicit objective-window controls](docs/SHARPE-WINDOW-DIAGNOSTIC.md)
+- [Unrun isolated cost-objective math](docs/COST-OBJECTIVE-PRIMITIVE.md)
 - [Requirements review and resolution](docs/REQUIREMENTS-REVIEW.md)
 - [Security](docs/SECURITY.md) and [toolchain](docs/TOOLCHAIN.md)
 
@@ -74,4 +84,13 @@ Agents must read [AGENTS.md](AGENTS.md), [handoff](openspec/HANDOFF.md), OpenSpe
 
 Research only: no brokerage execution or personalized investment recommendations. Historical outcomes do not predict future returns. Tailscale is disconnected and phone connectivity is deferred.
 
-Apache-2.0 is proposed; no license has been adopted yet. Do not redistribute vendor data or derived artifacts without recorded permission for the specific artifact. CI uses synthetic fixtures.
+Project code is licensed under [Apache-2.0](LICENSE), selected by the project owner on 2026-10-21. This does not grant rights to third-party data or derived artifacts; record permission for each artifact before redistribution. CI uses synthetic fixtures. Source is published at [RLinV1/Stock-Analysis-App](https://github.com/RLinV1/Stock-Analysis-App); application deployment remains unapproved.
+## Explicit research sweep source (unverified)
+
+Draft research source now includes explicit seed/cost planning, descriptive
+summaries, sequential snapshot-bound walk-forward orchestration and standalone
+offline-summary/training entry points. See [research sweep scope and limitations](docs/RESEARCH-SWEEPS.md).
+New source and regression cases have not been executed under the user's no-process
+instruction. In particular, real-loader/training integration and final report
+compatibility are not verified. No historical performance or completed research
+capability is claimed.

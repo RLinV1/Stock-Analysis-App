@@ -39,7 +39,7 @@ Required tests: duplicate submission; key/body conflict; worker crash and lease 
 
 A0 uses its existing schema_version=1 local manifest. The following v2 contract is not wire-compatible; reject unsupported versions rather than guessing a migration. Implement a machine-validated JSON Schema and a CLI verifier in A1 before accepting external manifests; API verification reuses them in B.
 
-The separate [synthetic request v1 schema](../contracts/synthetic-run-request.v1.schema.json) describes a bounded local A0 input and is not this v2 manifest. Python validates and executes that request locally, retaining the accepted request/hash beside an A0 report. No Java, HTTP or durable-job consumer exists yet. Its request hash is not a v2 input-identity digest.
+The separate [synthetic request v1 schema](../contracts/synthetic-run-request.v1.schema.json) describes a bounded local A0 input and is not this v2 manifest. Python validates and executes that request locally, retaining the accepted request/hash beside an A0 report. A Java/Spring Boot consumer now persists authenticated, idempotent submissions and exposes status, cancellation and a paginated list; bounded checks are recorded in the [service implementation history](../openspec/changes/build-synthetic-service-slice/implementation.md) and [browser/API evidence](evidence/mobile-web-2026-10-15/README.md). Artifact-reading routes and worker publication have source, but storage-backed result publication and complete Compose acceptance remain unverified. The request hash is not a v2 input-identity digest.
 
 Required groups (unknown fields rejected within each version):
 - identity: schema version, run ID, created_at, method label, immutable input-identity digest.
@@ -74,20 +74,24 @@ ONNX parity is separate: identical ordered raw features through each model's rec
 
 ## 4. Implemented versus planned research
 
-Existing modules:
+Bounded prior prototype scope (current source has since changed; draft additions are listed below):
 - data.py: validated CSV manifests, synthetic fixtures, chronological windows and train-only standardization. No market-data fetching or corporate-action reconstruction.
 - metrics.py: cumulative return, volatility, Sharpe, drawdown, turnover/costs, equal-weight and stock/bond baselines. No Sortino or complete paper baseline suite.
 - model.py: LSTM/softmax allocator and stabilized negative Sharpe.
 - runner.py: fixed holdout, validation selection, local artifacts and completed-epoch recovery.
 - service_contract.py: bounded synthetic request validation/canonical identity and local execution.
-- protocol.py: standalone causal expanding 24-month fold planner and validated sample adapter. Full per-fold model training/retention is not integrated.
+- protocol.py: archived causal expanding 24-month fold planner and validated sample adapter. Current model/group integration source is unverified, as described below.
 - repeat.py: same-environment saved A0 experiment comparison, separate from v2 replay.
 - cli.py: synthetic/run/synthetic-run/repeat commands; consult its help for the current surface.
 - Current tests and retained evidence: [handoff](../openspec/HANDOFF.md), [A0 evidence](A0-EVIDENCE.md).
 
 A0 remains owned by reproduce-portfolio-learning. A1 adds walk-forward, seven paper baselines, volatility scaling, tier/seed/cost experiments, the v2 schema and CLI verifier. B adds distributed jobs and HTTP replay. See [REPRODUCTION.md](REPRODUCTION.md) for current deviations.
 
+Source status on 2026-10-17: local [walk-forward](WALK-FORWARD.md), [explicit sweep](RESEARCH-SWEEPS.md), [known-allocation learnability gates](SYNTHETIC-LEARNABILITY.md), [normalization controls](NORMALIZATION-DIAGNOSTIC.md) and [objective-window controls](SHARPE-WINDOW-DIAGNOSTIC.md) have source/regression cases but are unrun. Their presence does not complete A1 or establish historical performance. Local RunConfig records train-only/raw normalization and minibatch/full-training objective windows; existing defaults are preserved by design. Service/fold execution is explicitly train-only/minibatch, and alternate direct folds reject before runtime access. Selected alternate local controls have strict setting-type preflight; legacy default A0 validation scope is unchanged. No paired study or preferred mode is established. The stabilized gross-return loss formula/epsilon remains unchanged; transaction costs affect evaluation only. Artifacts declare actual objective scope and history records optimizer-step counts. Current-source compatibility, real-loader/training checks and full regressions remain open.
+
 ### Causality and metric contract
+
+An isolated [cost-objective math prerequisite](COST-OBJECTIVE-PRIMITIVE.md) also has unrun tensor/gradient regression source. It requires an explicit previous target and has no RunConfig/service/fold/sweep integration or selected training-window boundary policy. Current runs still train on gross returns. Gross and isolated net losses now share explicit finite-moment/final-loss source guards; no current numerical compatibility result is available.
 
 Daily allocation is inference, not retraining. Within an A1 fold, the trained model and fitted preprocessing remain frozen while each trading day's trailing 50-observation input changes. Apply the resulting weights only to the following return. Retrain at 24-month fold boundaries using data available before that fold; record every model version and boundary. This is historical simulation, not an automatically scheduled live trading service. A0 currently uses one fixed train/validation/test split and does not implement two-year retraining.
 Decision features end before the target return. Fit each fold's preprocessing only on training data; validation selects models, never test results. A fixed chronological holdout can be causal but is not the paper's walk-forward protocol.

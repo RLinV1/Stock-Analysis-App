@@ -47,4 +47,4 @@ Success means:
 ## Publication and unresolved choices
 
 Publish positive or negative findings with limitations after evidence is reproducible. A missing paper input is uncertainty, not proof the paper is wrong.
-Apache-2.0 remains proposed. Provider and artifact permissions must be recorded before publishing; synthetic CI fixtures are the default. No paid data/compute or public deployment is authorized.
+The owner selected [Apache-2.0](../LICENSE) for project code on 2026-10-21 and authorized source publication at [RLinV1/Stock-Analysis-App](https://github.com/RLinV1/Stock-Analysis-App). Provider and artifact permissions must still be recorded before publishing their data; synthetic CI fixtures are the default. No paid data/compute or application deployment is authorized.

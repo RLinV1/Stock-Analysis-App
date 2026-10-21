@@ -39,7 +39,7 @@ Future risks are untrusted datasets, unsafe/oversized model files, resource exha
 
 ## Before publication or deployment
 
-- Choose the code license explicitly. Scan files/history for secrets and restricted data; configure pre-commit and CI checks when Git is initialized.
+- The owner selected Apache-2.0 for project code on 2026-10-21. Scan files/history for secrets and restricted data before publication; retain the local pre-commit gate and pinned read-only CI checks.
 - Do not blanket-allow vendor samples under data/sample. Commit synthetic fixtures only unless permission is recorded.
 - Review .gitignore for data, runs, model/checkpoint files and environment secrets; ignore rules alone are not a scan.
 - Public GitHub Actions should use reviewed commit pins and minimum permissions; never expose secrets to untrusted pull-request code.

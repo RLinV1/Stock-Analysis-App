@@ -73,6 +73,9 @@ node_modules/
 # OpenSpec's machine-local archive claim. Keep archived changes tracked.
 openspec/changes/archive/.openspec-archive.lock
 
+# Local generated knowledge graph, caches, interpreter paths and extraction scratch.
+/graphify-out/
+
 # ---------------------------------------------------------------
 # Editors and OS
 # ---------------------------------------------------------------

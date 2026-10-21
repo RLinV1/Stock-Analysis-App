@@ -1,6 +1,6 @@
 # Portfolio Lab — design
 
-Updated 2026-10-14; requirements-review decisions remain unchanged.
+Updated 2026-10-17; requirements-review decisions remain unchanged. Current research additions are unrun source drafts.
 
 ## Direction and stack
 
@@ -74,7 +74,7 @@ flowchart TB
     class ONNX pend
 ```
 
-Dashed = not yet built and gated on earlier milestones. Runner, API/worker and connected client source exist with unit/component checks; no cross-service diagram edge has passed live runtime verification. See Current evidence below.
+Dashed = not yet built and gated on earlier milestones. Runner, API/worker and connected client source exist with prior unit/component checks. Bounded real browser/API/PostgreSQL mutations, worker database cases and independent image/migration/restart checks have recorded evidence; end-to-end S3 result publication and full Compose remain unverified. See Current evidence below.
 
 The two runtimes never call each other synchronously. They share a database contract and an
 artifact contract, which is what makes a job recoverable after an interruption on either side.
@@ -96,10 +96,10 @@ On this Windows PC, the planned local cluster uses k3d to run K3s in Linux conta
 | Milestone | Scope | Owner / evidence |
 |---|---|---|
 | A0: bounded prototype | Fixed chronological holdout, two baselines, checkpoint recovery, CPU smoke and bounded historical experiment if accessible | Existing reproduce-portfolio-learning change; partial implementation |
-| A1: fuller research | Walk-forward, seven paper baselines, tier comparisons, seed/cost sweeps, CLI manifest verification, honest findings | Subsequent research implementation change; not built |
-| B: distributed execution | API, durable worker jobs, Postgres/Liquibase, LocalStack, Compose; HTTP verification | Synthetic source/unit tests exist in build-synthetic-service-slice; PostgreSQL/LocalStack/Compose and HTTP verification remain open |
+| A1: fuller research | Walk-forward, seven paper baselines, tier comparisons, seed/cost sweeps, CLI manifest verification, honest findings | Walk-forward, sweep and controlled learnability source drafts exist but are unrun; broader research/replay remains open |
+| B: distributed execution | API, durable worker jobs, Postgres/Liquibase, LocalStack, Compose; HTTP verification | Bounded database/browser/image checks are recorded in build-synthetic-service-slice; S3 publication, complete-result recovery and full Compose remain open |
 | B extension | ONNX export, per-fold parity and explicit served-model selection | Required before inference endpoint ships |
-| C: mobile | Android results/status, web-compatible charts, visible offline cache | Offline preview and connected run/report/equity/allocations flow are component-tested; rendered/live-service/device/cache acceptance remains open |
+| C: mobile | Android results/status, web-compatible charts, visible offline cache | Prior component/export checks, rendered fixture Results and bounded real browser mutations pass; completed-result/device/cache acceptance remains open |
 | D: deployment | Additional K3s path and recovery demonstration | Subsequent deployment change; not built |
 
 A0 completion does not imply paper replication or A1 completion. A1 can be reported independently before the application ships. Resume wording must describe measured, completed work only.
@@ -121,7 +121,11 @@ The first usable slice is deliberately small but does not reduce any A1/B/C/D co
 
 The Python prototype includes source-revision metadata, bounded synthetic request execution and local saved-run comparison; retained synthetic repeat/resume outputs match exactly. [A0-EVIDENCE.md](docs/A0-EVIDENCE.md) records measurements and limits. Spring source implements submit/status/cancel/list and verified manifest/report/equity/allocations routes; Python worker and Compose source also exist. The Android/web client has connected run/results controls with 91 passing component/contract tests, TypeScript/lint and Android/web exports. PostgreSQL startup/repository/worker checks and a bounded real browser connect/list/submit/status/cancel flow pass as of 2026-10-15; rendered Results use fixtures. LocalStack/result publication, physical Android, historical reproduction, Compose and K3s remain unverified. [The handoff](openspec/HANDOFF.md) owns latest verification; [REPRODUCTION.md](docs/REPRODUCTION.md) describes numerical deviations.
 
+That evidence predates the current uncommitted research continuation. [Walk-forward](docs/WALK-FORWARD.md), [explicit sweeps](docs/RESEARCH-SWEEPS.md), [synthetic learnability](docs/SYNTHETIC-LEARNABILITY.md), [normalization controls](docs/NORMALIZATION-DIAGNOSTIC.md) and [objective-window controls](docs/SHARPE-WINDOW-DIAGNOSTIC.md) now have source and regression cases, including runner/repeat changes, but none has been imported, tested or executed under the current file-only instruction. Do not treat prior A0 checks as current-source verification or mark those A1 tasks complete. Alternate normalization/objective controls are local fixed-holdout diagnostics; service/fold execution remains train-only/minibatch. Full-training may need more memory and changes update counts; no paired-study conclusion is available.
+
 ## Access and unresolved choices
+
+The separate [cost-objective prerequisite](docs/COST-OBJECTIVE-PRIMITIVE.md) is unrun math source only. It does not enable cost-aware training or settle the window-boundary policy. Current run routes retain gross objectives/evaluation-only costs; the complete experiment remains A1 work.
 
 UI direction: the user supplied an apple-design skill on 2026-10-09. Apply its interaction/visual principles through [UI-DESIGN.md](docs/UI-DESIGN.md), retaining Expo and native Android conventions. Current component and bounded web visual/failure-state evidence is recorded above; device, full accessibility, motion and release-performance checks remain open.
 
@@ -129,4 +133,4 @@ A controlled Transformer comparison was discussed as a possible research extensi
 
 Backend and training run on this PC. Tailscale is disconnected at the user's request; do not reconnect or block local work on phone enrollment. Private HTTPS phone access is a later milestone. No public Funnel.
 
-Apache-2.0 remains a proposed license, not granted by this documentation update. Original paper inputs and the historical audit figures remain unverified. Dataset rights must be recorded before fetching or publishing relevant artifacts. Numerical defaults are explicit engineering choices, not facts about the paper.
+The owner selected Apache-2.0 for project code on 2026-10-21; see [LICENSE](LICENSE). Source publication is authorized at [RLinV1/Stock-Analysis-App](https://github.com/RLinV1/Stock-Analysis-App). Original paper inputs and the historical audit figures remain unverified. Dataset rights must be recorded before fetching or publishing relevant artifacts. Numerical defaults are explicit engineering choices, not facts about the paper. Application deployment remains unapproved.

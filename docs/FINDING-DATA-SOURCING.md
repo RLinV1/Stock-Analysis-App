@@ -30,7 +30,7 @@ Adjusted prices are not automatically point-in-time information; explicitly disc
 Record permission/access terms for each exact dataset and intended use before downloading or redistribution. A free endpoint is not a redistribution license; neither is a third-party rehost's assertion of ownership. This review did not establish legal permission across all providers.
 There may be other redistributable datasets; that does not imply availability of the paper's instruments/dates.
 Use synthetic samples for committed CI fixtures. Keep vendor snapshots local and ignored unless specific permission is recorded. Small samples are still data; being short does not establish permission.
-Derived returns, figures, model artifacts and allocation series require their own publication assessment; transformation alone does not establish rights. Commit provenance and permitted outputs only. Apache-2.0 would cover project code, not automatically upstream data.
+Derived returns, figures, model artifacts and allocation series require their own publication assessment; transformation alone does not establish rights. Commit provenance and permitted outputs only. The owner-selected Apache-2.0 license covers project code, not automatically upstream data.
 Use a provider adapter so a supported licensed source can replace a provisional source without changing experiment semantics. No paid data purchase is authorized.
 
 ## Work still required

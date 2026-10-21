@@ -1,0 +1,7 @@
+- [x] 1.1 Record the public repository target and explicit Apache-2.0 selection; reconcile current documentation.
+- [x] 1.2 Add the license, repository title, generated-output exclusion and minimal pinned secret-scanning CI.
+- [x] 1.3 Reconcile Graphify's completed extraction, sparse labels and user-stopped HTML check; keep local graph artifacts outside publication.
+- [x] 2.1 Inspect staged files for restricted/generated content; run existing staged/history scanning plus independent redacted Gitleaks file/history scans.
+- [x] 2.2 Validate publication documentation and CI syntax without running research/training/services.
+- [ ] 3.1 Preserve history, commit the current source, set main/origin, push without force, and verify the remote commit and CI outcome.
+- [ ] 3.2 Reconcile implementation/handoff with actual publication results; validate and archive completed changes only after required verification.

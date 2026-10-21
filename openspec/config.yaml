@@ -25,9 +25,26 @@ context: |
   the Android/web client has 91 passing component/contract tests, clean
   TypeScript/lint and Android/web exports as of 2026-10-15. Rendered Results use
   fixtures; separate real browser mutations pass. Physical-device and completed
-  result publication checks remain open. The local synthetic adapter/A0 runner
-  and causal fold planner have 111 passing research tests plus a
-  separate completed CLI smoke. A0 has Git provenance and local repeat/resume
+  result publication checks remain open. The earlier synthetic adapter/A0 runner
+  and causal fold planner passed 111 research tests and a separate CLI smoke.
+  Current fold-runner/group/accounting/CLI and causality regression source is an
+  unverified draft under the user's code-only/no-process instruction. Do not run
+  project commands, imports, tests, builds, apps, services or commits until authorized.
+  The user subsequently authorized only the lightweight file-reading helper and
+  editing; keep project execution stopped and do no GPU work while their separate
+  GPU model is running. This does not authorize training or checks.
+  Explicit sweep, synthetic learnability and local fixed-holdout normalization
+  controls also have unrun source/regression cases. RunConfig records train-only/raw;
+  the existing train-only default is preserved by design, the synthetic service
+  explicitly keeps train-only, and direct raw folds reject before runtime access.
+  No paired normalization study, preferred mode or current-source compatibility is proven.
+  Local RunConfig also records minibatch/full-training objective-window controls,
+  with dynamic scope declarations and optimizer-step counts. Service/fold scopes
+  stay explicitly minibatch. Full-training uses one update/full graph per epoch;
+  no memory saving, isolated batch-size study or preferred method is established.
+  Selected alternate local controls have strict setting-type preflight, while
+  legacy default A0 validation scope remains unchanged. All new checks are unrun.
+  A0 has prior-source Git provenance and local repeat/resume
   evidence; historical seed/cost research and v2 replay remain open.
   DESIGN.md is current; docs/archive/ABACUS-DESIGN.superseded.md is historical only.
   Preserve causal evaluation, data provenance, and explicit reproduction deviations.
