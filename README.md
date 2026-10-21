@@ -61,6 +61,8 @@ These commands use synthetic data and the small default 64-unit/50-observation C
 
 ## Read next
 
+- [Running on Windows, macOS, Linux and Docker Compose](docs/RUNNING.md)
+- [Historical Yahoo data through 2026 (code ready, not yet run)](docs/HISTORICAL-DATA.md)
 - [Start here](docs/START-HERE.md)
 - [Design and milestones](DESIGN.md)
 - [Technical contract](docs/SPEC.md)
