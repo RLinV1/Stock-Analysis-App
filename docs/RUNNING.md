@@ -51,6 +51,49 @@ PY -m pytest research/tests -q                                    # research tes
 
 Historical data and walk-forward commands are in [HISTORICAL-DATA.md](HISTORICAL-DATA.md). The research CLI needs no database, API or container.
 
+### Synthetic quickstart: run, repeat, resume
+
+These use small generated data and the default 64-unit, 50-day CPU model. They are engineering checks, not investment results. Windows PowerShell:
+
+```powershell
+$labPython = ".\.venv\Scripts\python.exe"
+$demoId = [guid]::NewGuid().ToString("N")
+$dataset = & $labPython -m portfolio_lab.cli synthetic "data/demo-$demoId" --observations 420
+$runRoot = "runs/demo-$demoId"
+$run = & $labPython -m portfolio_lab.cli run $dataset --output $runRoot --epochs 3 --seed 7 --cost-bps 1
+$comparison = & $labPython -m portfolio_lab.cli repeat $run --output $runRoot
+Get-Content $comparison
+```
+
+macOS and Linux:
+
+```bash
+lab=.venv/bin/python
+demo=demo-$(date +%s)
+dataset=$($lab -m portfolio_lab.cli synthetic "data/$demo" --observations 420)
+run=$($lab -m portfolio_lab.cli run "$dataset" --output "runs/$demo" --epochs 3 --seed 7 --cost-bps 1)
+comparison=$($lab -m portfolio_lab.cli repeat "$run" --output "runs/$demo")
+cat "$comparison"
+```
+
+- **run** saves the run's manifest, a copy of its dataset, the report, allocation history, model and checkpoint.
+- **repeat** retrains from the saved run and compares the outputs (absolute tolerance 1e-7, same code and runtime required). It never overwrites the original. Exit code 0 means matched, 1 means different, incompatible or failed (a report is still written), 2 means bad command usage.
+
+Pause after one epoch and resume from the checkpoint (PowerShell; on macOS/Linux use `$lab` and `"$dataset"` the same way):
+
+```powershell
+$paused = & $labPython -m portfolio_lab.cli run $dataset --output $runRoot --epochs 3 --stop-after-epochs 1
+& $labPython -m portfolio_lab.cli run $dataset --output $runRoot --resume $paused
+```
+
+Run the versioned synthetic request that the API and worker share, locally without an API, database or container:
+
+```bash
+PY -m portfolio_lab.cli synthetic-run contracts/examples/synthetic-smoke.v1.json --output runs/request-demo
+```
+
+It prints the finished run directory, which also holds `request.json` and `request.sha256`. The [request schema](../contracts/synthetic-run-request.v1.schema.json) allows only small synthetic CPU jobs. Identity and comparison limits are in [REPRODUCTION.md](REPRODUCTION.md).
+
 ## 2. Docker Compose
 
 Compose starts everything the API needs without Kubernetes:
