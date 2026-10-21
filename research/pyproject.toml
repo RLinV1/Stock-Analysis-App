@@ -9,6 +9,9 @@ description = "Auditable, paper-inspired deep portfolio allocation experiments"
 requires-python = ">=3.12,<3.13"
 dependencies = ["numpy==2.2.6", "torch==2.8.0", "psutil==7.0.0", "filelock==3.32.6"]
 
+[project.optional-dependencies]
+data = ["yfinance==1.7.0"]
+
 [project.scripts]
 portfolio-lab = "portfolio_lab.cli:main"
 
